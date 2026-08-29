@@ -1,0 +1,6 @@
+target/
+.mvn/
+.env
+.env.*
+HELP.md
+*.log
