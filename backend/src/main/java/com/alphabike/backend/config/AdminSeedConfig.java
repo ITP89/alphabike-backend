@@ -52,6 +52,28 @@ public class AdminSeedConfig {
             admin.setPasswordHash(passwordEncoder.encode(adminPassword));
 
             usuarioRepository.save(admin);
+
+            // Seed ENCARGADO
+            String encargadoEmail = "encargado@alphabike.com";
+            Usuario encargado = usuarioRepository.findByEmail(encargadoEmail)
+                    .orElseGet(() -> Usuario.builder().email(encargadoEmail).build());
+            encargado.setNombre("Encargado Taller AlphaBike");
+            encargado.setTelefono("987654321");
+            encargado.setRol(Usuario.Rol.ENCARGADO);
+            encargado.setEstado(Usuario.Estado.ACTIVO);
+            encargado.setPasswordHash(passwordEncoder.encode("encargado1234"));
+            usuarioRepository.save(encargado);
+
+            // Seed CLIENTE
+            String clienteEmail = "cliente@alphabike.com";
+            Usuario cliente = usuarioRepository.findByEmail(clienteEmail)
+                    .orElseGet(() -> Usuario.builder().email(clienteEmail).build());
+            cliente.setNombre("Cliente Frecuente AlphaBike");
+            cliente.setTelefono("912345678");
+            cliente.setRol(Usuario.Rol.CLIENTE);
+            cliente.setEstado(Usuario.Estado.ACTIVO);
+            cliente.setPasswordHash(passwordEncoder.encode("cliente1234"));
+            usuarioRepository.save(cliente);
         };
     }
 }
