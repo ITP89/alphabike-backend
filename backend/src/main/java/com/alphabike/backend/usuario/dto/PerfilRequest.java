@@ -2,6 +2,7 @@ package com.alphabike.backend.usuario.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,5 +24,7 @@ public class PerfilRequest {
     private String telefono;
 
     private String passwordActual;
+
+    @Size(min = 6, message = "La contrasena nueva debe tener al menos 6 caracteres")
     private String passwordNueva;
 }

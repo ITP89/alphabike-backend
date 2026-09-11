@@ -60,8 +60,9 @@ public class PedidoService {
 
     @Transactional
     public PedidoResponse crear(PedidoRequest request, String email) {
-        Usuario cliente = usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado"));
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+        boolean ventaInterna = usuario.getRol() == Usuario.Rol.ADMIN || usuario.getRol() == Usuario.Rol.ENCARGADO;
 
         Pedido.TipoEntrega tipoEntrega = EnumUtils.parse(
                 Pedido.TipoEntrega.class,
@@ -73,7 +74,7 @@ public class PedidoService {
         Map<String, Producto> productos = cargarYValidarProductos(cantidadesPorProducto);
 
         Pedido pedido = Pedido.builder()
-                .cliente(cliente)
+                .cliente(usuario)
                 .estado(Pedido.Estado.PENDIENTE)
                 .tipoEntrega(tipoEntrega)
                 .direccionEntrega(request.getDireccionEntrega())
@@ -89,8 +90,9 @@ public class PedidoService {
         for (DetallePedidoRequest detalleReq : request.getDetalles()) {
             Producto producto = productos.get(detalleReq.getProductoId());
 
-            // Para pedidos de clientes, se usa siempre el precio de lista del producto
-            BigDecimal precioAcordado = producto.getPrecio();
+            BigDecimal precioAcordado = ventaInterna && detalleReq.getPrecioAcordado() != null
+                    ? detalleReq.getPrecioAcordado()
+                    : producto.getPrecio();
 
             BigDecimal subtotal = precioAcordado.multiply(
                     BigDecimal.valueOf(detalleReq.getCantidad()));

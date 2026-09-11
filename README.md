@@ -31,6 +31,8 @@ Puedes exportarlas en el sistema o crear `backend/.env` usando como guia `backen
 | `APP_SEED_ADMIN_PASSWORD` | Password del admin seed. Obligatoria si el seed esta activo. |
 | `APP_SEED_ADMIN_NAME` | Nombre del admin seed. |
 | `APP_SEED_ADMIN_PHONE` | Telefono del admin seed. |
+| `SPRINGDOC_API_DOCS_ENABLED` | Habilita `/v3/api-docs`. Default: `false`. |
+| `SPRINGDOC_SWAGGER_UI_ENABLED` | Habilita Swagger UI. Default: `false`. |
 
 ## Admin local de desarrollo
 
@@ -71,7 +73,7 @@ mvn spring-boot:run "-Dspring-boot.run.profiles=demo"
 
 Este modo es solo para desarrollo o presentacion local. No reemplaza PostgreSQL/Supabase para produccion.
 
-Swagger queda disponible en:
+Swagger queda disponible en el perfil `demo` o habilitando `SPRINGDOC_API_DOCS_ENABLED=true` y `SPRINGDOC_SWAGGER_UI_ENABLED=true`:
 
 - `http://localhost:8080/swagger-ui.html`
 - `http://localhost:8080/v3/api-docs`
@@ -87,7 +89,7 @@ Los tests usan perfil `test`, H2 en memoria y Flyway deshabilitado.
 
 ## Docker
 
-Desde el directorio padre que contiene ambos repositorios:
+Con `alphabike-backend` y `alphabike-frontend` clonados como carpetas hermanas, ejecuta desde `alphabike-backend`:
 
 ```bash
 docker compose up --build
@@ -101,4 +103,4 @@ Servicios:
 
 ## Migraciones
 
-Las migraciones viven en `backend/src/main/resources/db/migration`. La migracion inicial es `V1__init_schema.sql`.
+Las migraciones viven en `backend/src/main/resources/db/migration`. La migracion inicial crea los esquemas base sin borrar datos. Los resets destructivos deben hacerse manualmente solo en entornos locales.

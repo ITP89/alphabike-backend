@@ -18,6 +18,7 @@ public class UsuarioRequest {
     @Email
     private String email;
 
+    @Size(min = 6, message = "La contrasena debe tener al menos 6 caracteres")
     private String password;
 
     @NotBlank(message = "El telefono es obligatorio")

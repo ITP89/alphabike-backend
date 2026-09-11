@@ -37,9 +37,15 @@ public class CitaService {
                 .toList();
     }
 
-    public CitaResponse obtener(String id) {
+    public CitaResponse obtener(String id, String emailUsuario) {
         Cita cita = citaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada"));
+        Usuario usuario = usuarioRepository.findByEmail(emailUsuario)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+        if (usuario.getRol() == Usuario.Rol.CLIENTE &&
+                !cita.getCliente().getId().equals(usuario.getId())) {
+            throw new UnauthorizedException("No tienes permiso para ver esta cita");
+        }
         return CitaResponse.from(cita);
     }
 

@@ -1,5 +1,7 @@
 package com.alphabike.backend.security;
 
+import com.alphabike.backend.usuario.Usuario;
+import com.alphabike.backend.usuario.UsuarioRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +21,7 @@ import java.util.List;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final UsuarioRepository usuarioRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -30,16 +33,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (token != null && jwtTokenProvider.validateToken(token)) {
             String email = jwtTokenProvider.getEmailFromToken(token);
-            String rol = jwtTokenProvider.getRolFromToken(token);
 
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            email,
-                            null,
-                            List.of(new SimpleGrantedAuthority("ROLE_" + rol))
-                    );
+            usuarioRepository.findByEmail(email)
+                    .filter(usuario -> usuario.getEstado() == Usuario.Estado.ACTIVO)
+                    .ifPresent(usuario -> {
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        usuario.getEmail(),
+                                        null,
+                                        List.of(new SimpleGrantedAuthority("ROLE_" + usuario.getRol().name()))
+                                );
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    });
         }
 
         filterChain.doFilter(request, response);

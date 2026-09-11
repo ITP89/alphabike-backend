@@ -41,7 +41,7 @@ public class PedidoController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('CLIENTE', 'ENCARGADO')")
+    @PreAuthorize("hasAnyRole('CLIENTE', 'ENCARGADO', 'ADMIN')")
     public ResponseEntity<ApiResponse<PedidoResponse>> crear(
             @Valid @RequestBody PedidoRequest request,
             @AuthenticationPrincipal String email) {

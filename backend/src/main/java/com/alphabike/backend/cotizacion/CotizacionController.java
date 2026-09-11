@@ -18,14 +18,19 @@ public class CotizacionController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<CotizacionResponse>> obtener(@PathVariable String id) {
-        return ResponseEntity.ok(ApiResponse.ok("Cotizacion obtenida", cotizacionService.obtener(id)));
+    public ResponseEntity<ApiResponse<CotizacionResponse>> obtener(
+            @PathVariable String id,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.ok("Cotizacion obtenida", cotizacionService.obtener(id, email)));
     }
 
     @GetMapping("/cita/{citaId}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<CotizacionResponse>> obtenerPorCita(@PathVariable String citaId) {
-        return ResponseEntity.ok(ApiResponse.ok("Cotizacion obtenida", cotizacionService.obtenerPorCita(citaId)));
+    public ResponseEntity<ApiResponse<CotizacionResponse>> obtenerPorCita(
+            @PathVariable String citaId,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.ok("Cotizacion obtenida",
+                cotizacionService.obtenerPorCita(citaId, email)));
     }
 
     @PostMapping("/cita/{citaId}")

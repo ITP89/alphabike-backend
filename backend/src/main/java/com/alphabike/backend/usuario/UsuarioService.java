@@ -41,13 +41,15 @@ public class UsuarioService {
             throw new BadRequestException("La contrasena es obligatoria");
         }
 
-        if (usuarioRepository.existsByEmail(request.getEmail())) {
+        String email = normalizeEmail(request.getEmail());
+
+        if (usuarioRepository.existsByEmail(email)) {
             throw new BadRequestException("El email ya esta registrado");
         }
 
         Usuario usuario = Usuario.builder()
                 .nombre(request.getNombre())
-                .email(request.getEmail())
+                .email(email)
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .telefono(request.getTelefono())
                 .rol(EnumUtils.parse(Usuario.Rol.class, request.getRol(), "rol"))
@@ -119,5 +121,9 @@ public class UsuarioService {
                 .pedidos(pedidos)
                 .citas(citas)
                 .build();
+    }
+
+    private String normalizeEmail(String email) {
+        return email == null ? "" : email.trim().toLowerCase();
     }
 }

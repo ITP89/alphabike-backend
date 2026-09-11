@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: alphabike
+      POSTGRES_USER: alphabike
+      POSTGRES_PASSWORD: alphabike_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - alphabike-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alphabike -d alphabike"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/alphabike
+      DB_USERNAME: alphabike
+      DB_PASSWORD: alphabike_dev_password
+      JWT_SECRET: local-compose-secret-for-alphabike-with-more-than-32-chars
+      APP_SEED_ADMIN_ENABLED: "true"
+      APP_SEED_ADMIN_PASSWORD: admin1234
+      SPRINGDOC_API_DOCS_ENABLED: "true"
+      SPRINGDOC_SWAGGER_UI_ENABLED: "true"
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ../alphabike-frontend
+      args:
+        VITE_API_URL: http://localhost:8080/api/v1
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  alphabike-postgres:

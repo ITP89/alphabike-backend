@@ -19,6 +19,9 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + email));
+        if (usuario.getEstado() == Usuario.Estado.INACTIVO) {
+            throw new UsernameNotFoundException("Usuario inactivo: " + email);
+        }
 
         return new org.springframework.security.core.userdetails.User(
                 usuario.getEmail(),

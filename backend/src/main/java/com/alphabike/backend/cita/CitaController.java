@@ -33,8 +33,10 @@ public class CitaController {
 
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<CitaResponse>> obtener(@PathVariable String id) {
-        return ResponseEntity.ok(ApiResponse.ok("Cita obtenida", citaService.obtener(id)));
+    public ResponseEntity<ApiResponse<CitaResponse>> obtener(
+            @PathVariable String id,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.ok("Cita obtenida", citaService.obtener(id, email)));
     }
 
     @PostMapping
