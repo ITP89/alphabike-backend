@@ -73,8 +73,15 @@ public class ReporteService {
 
         return encargados.stream().map(encargado -> {
             List<DetallePedido> detallesEncargado = detalles.stream()
-                    .filter(d -> d.getPedido() != null)
+                    .filter(d -> d.getPedido() != null
+                            && d.getPedido().getCliente() != null
+                            && encargado.getId().equals(d.getPedido().getCliente().getId()))
                     .toList();
+
+            long totalVentas = detallesEncargado.stream()
+                    .map(d -> d.getPedido().getId())
+                    .distinct()
+                    .count();
 
             BigDecimal totalDesc = detallesEncargado.stream()
                     .map(d -> {
@@ -86,14 +93,14 @@ public class ReporteService {
                     .filter(d -> d.compareTo(BigDecimal.ZERO) > 0)
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-            BigDecimal promedio = detallesEncargado.isEmpty() ? BigDecimal.ZERO :
-                    totalDesc.divide(BigDecimal.valueOf(detallesEncargado.size()),
+            BigDecimal promedio = totalVentas == 0 ? BigDecimal.ZERO :
+                    totalDesc.divide(BigDecimal.valueOf(totalVentas),
                             2, RoundingMode.HALF_UP);
 
             return DescuentosReporteResponse.builder()
                     .encargadoId(encargado.getId())
                     .encargadoNombre(encargado.getNombre())
-                    .totalVentas((long) detallesEncargado.size())
+                    .totalVentas(totalVentas)
                     .totalDescuentos(totalDesc)
                     .promedioDescuento(promedio)
                     .build();

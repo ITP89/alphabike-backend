@@ -9,12 +9,14 @@ import com.alphabike.backend.shared.exception.BadRequestException;
 import com.alphabike.backend.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ProductoService {
 
     private final ProductoRepository productoRepository;
@@ -41,6 +43,7 @@ public class ProductoService {
         return ProductoResponse.from(producto);
     }
 
+    @Transactional
     public ProductoResponse crear(ProductoRequest request) {
         Categoria categoria = categoriaRepository.findById(request.getCategoriaId())
                 .orElseThrow(() -> new ResourceNotFoundException("Categoria no encontrada"));
@@ -62,6 +65,7 @@ public class ProductoService {
         return ProductoResponse.from(productoRepository.save(producto));
     }
 
+    @Transactional
     public ProductoResponse actualizar(String id, ProductoRequest request) {
         Producto producto = productoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
@@ -83,6 +87,7 @@ public class ProductoService {
         return ProductoResponse.from(productoRepository.save(producto));
     }
 
+    @Transactional
     public ProductoResponse actualizarStock(String id, Integer stock) {
         if (stock == null || stock < 0) {
             throw new BadRequestException("El stock no puede ser negativo");
@@ -93,6 +98,7 @@ public class ProductoService {
         return ProductoResponse.from(productoRepository.save(producto));
     }
 
+    @Transactional
     public void eliminar(String id) {
         Producto producto = productoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
