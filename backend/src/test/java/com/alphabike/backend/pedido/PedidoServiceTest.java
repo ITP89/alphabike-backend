@@ -118,6 +118,7 @@ class PedidoServiceTest {
                 .nombre("Casco")
                 .marca("Giro")
                 .precio(new BigDecimal("100.00"))
+                .precioMinimoVenta(new BigDecimal("80.00"))
                 .stock(5)
                 .estado(Producto.Estado.ACTIVO)
                 .categoria(Categoria.builder().id("cat-1").nombre("Accesorios").build())
@@ -140,5 +141,41 @@ class PedidoServiceTest {
         assertThat(response.getDetalles().get(0).getPrecioLista()).isEqualByComparingTo("100.00");
         assertThat(response.getDetalles().get(0).getPrecioAcordado()).isEqualByComparingTo("80.00");
         assertThat(producto.getStock()).isEqualTo(4);
+    }
+
+    @Test
+    void crearRechazaPrecioAcordadoMenorAlLimiteDeRegateo() {
+        Usuario encargado = Usuario.builder()
+                .id("encargado-1")
+                .email("encargado@test.com")
+                .nombre("Encargado Test")
+                .rol(Usuario.Rol.ENCARGADO)
+                .build();
+        Producto producto = Producto.builder()
+                .id("producto-1")
+                .nombre("Casco")
+                .marca("Giro")
+                .precio(new BigDecimal("100.00"))
+                .precioMinimoVenta(new BigDecimal("80.00"))
+                .stock(5)
+                .estado(Producto.Estado.ACTIVO)
+                .categoria(Categoria.builder().id("cat-1").nombre("Accesorios").build())
+                .build();
+        PedidoRequest request = new PedidoRequest(
+                "RECOJO_TIENDA",
+                null,
+                List.of(new DetallePedidoRequest("producto-1", 1, new BigDecimal("79.99")))
+        );
+
+        when(usuarioRepository.findByEmail("encargado@test.com")).thenReturn(Optional.of(encargado));
+        when(productoRepository.findByIdForUpdate("producto-1")).thenReturn(Optional.of(producto));
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        assertThatThrownBy(() -> pedidoService.crear(request, "encargado@test.com"))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("no puede ser menor");
+
+        assertThat(producto.getStock()).isEqualTo(5);
+        verify(detallePedidoRepository, never()).save(any());
     }
 }

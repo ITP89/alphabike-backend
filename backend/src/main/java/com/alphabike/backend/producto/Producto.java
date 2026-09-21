@@ -34,6 +34,9 @@ public class Producto {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal precio;
 
+    @Column(name = "precio_minimo_venta", nullable = false, precision = 10, scale = 2)
+    private BigDecimal precioMinimoVenta;
+
     @Column(nullable = false)
     private Integer stock;
 

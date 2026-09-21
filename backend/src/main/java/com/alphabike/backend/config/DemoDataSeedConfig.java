@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 
 @Configuration
@@ -92,6 +93,7 @@ public class DemoDataSeedConfig {
                 .descripcion(descripcion)
                 .marca(marca)
                 .precio(new BigDecimal(precio))
+                .precioMinimoVenta(new BigDecimal(precio).multiply(new BigDecimal("0.90")).setScale(2, RoundingMode.HALF_UP))
                 .stock(stock)
                 .estado(Producto.Estado.ACTIVO)
                 .build());

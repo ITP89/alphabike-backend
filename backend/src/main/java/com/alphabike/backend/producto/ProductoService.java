@@ -8,6 +8,7 @@ import com.alphabike.backend.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -46,6 +47,7 @@ public class ProductoService {
                 .descripcion(request.getDescripcion())
                 .marca(request.getMarca())
                 .precio(request.getPrecio())
+                .precioMinimoVenta(resolvePrecioMinimoVenta(request))
                 .stock(request.getStock())
                 .imagenUrl(request.getImagenUrl())
                 .categoria(categoria)
@@ -66,6 +68,7 @@ public class ProductoService {
         producto.setDescripcion(request.getDescripcion());
         producto.setMarca(request.getMarca());
         producto.setPrecio(request.getPrecio());
+        producto.setPrecioMinimoVenta(resolvePrecioMinimoVenta(request));
         producto.setStock(request.getStock());
         producto.setImagenUrl(request.getImagenUrl());
         producto.setCategoria(categoria);
@@ -88,5 +91,17 @@ public class ProductoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
         producto.setEstado(Producto.Estado.DESCONTINUADO);
         productoRepository.save(producto);
+    }
+
+    private BigDecimal resolvePrecioMinimoVenta(ProductoRequest request) {
+        BigDecimal precioMinimo = request.getPrecioMinimoVenta() != null
+                ? request.getPrecioMinimoVenta()
+                : request.getPrecio();
+
+        if (precioMinimo.compareTo(request.getPrecio()) > 0) {
+            throw new BadRequestException("El precio minimo de venta no puede superar el precio normal");
+        }
+
+        return precioMinimo;
     }
 }

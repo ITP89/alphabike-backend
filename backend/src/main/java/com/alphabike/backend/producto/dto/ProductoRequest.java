@@ -22,6 +22,9 @@ public class ProductoRequest {
     @DecimalMin(value = "0.0", inclusive = false)
     private BigDecimal precio;
 
+    @DecimalMin(value = "0.0", inclusive = false, message = "El precio minimo de venta debe ser mayor a cero")
+    private BigDecimal precioMinimoVenta;
+
     @NotNull(message = "El stock es obligatorio")
     @Min(value = 0)
     private Integer stock;

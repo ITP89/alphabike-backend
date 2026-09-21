@@ -16,6 +16,7 @@ public class ProductoResponse {
     private String descripcion;
     private String marca;
     private BigDecimal precio;
+    private BigDecimal precioMinimoVenta;
     private Integer stock;
     private String imagenUrl;
     private String estado;
@@ -29,6 +30,7 @@ public class ProductoResponse {
                 .descripcion(producto.getDescripcion())
                 .marca(producto.getMarca())
                 .precio(producto.getPrecio())
+                .precioMinimoVenta(producto.getPrecioMinimoVenta())
                 .stock(producto.getStock())
                 .imagenUrl(producto.getImagenUrl())
                 .estado(producto.getEstado().name())

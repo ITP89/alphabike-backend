@@ -93,6 +93,7 @@ public class PedidoService {
             BigDecimal precioAcordado = ventaInterna && detalleReq.getPrecioAcordado() != null
                     ? detalleReq.getPrecioAcordado()
                     : producto.getPrecio();
+            validarPrecioAcordado(producto, precioAcordado);
 
             BigDecimal subtotal = precioAcordado.multiply(
                     BigDecimal.valueOf(detalleReq.getCantidad()));
@@ -133,6 +134,7 @@ public class PedidoService {
         return PedidoResponse.from(pedidoRepository.save(pedido));
     }
 
+    @Transactional
     public PedidoResponse actualizarPrecioAcordado(String pedidoId, String detalleId,
                                                    BigDecimal precioAcordado) {
         if (precioAcordado == null || precioAcordado.compareTo(BigDecimal.ZERO) <= 0) {
@@ -144,6 +146,7 @@ public class PedidoService {
         if (!detalle.getPedido().getId().equals(pedidoId)) {
             throw new UnauthorizedException("El detalle no pertenece a este pedido");
         }
+        validarPrecioAcordado(detalle.getProducto(), precioAcordado);
         detalle.setPrecioAcordado(precioAcordado);
         detalle.setSubtotal(precioAcordado.multiply(BigDecimal.valueOf(detalle.getCantidad())));
         detallePedidoRepository.save(detalle);
@@ -198,5 +201,18 @@ public class PedidoService {
             case ENVIO_PROVINCIA -> new BigDecimal("25.00");
             default -> BigDecimal.ZERO;
         };
+    }
+
+    private void validarPrecioAcordado(Producto producto, BigDecimal precioAcordado) {
+        BigDecimal precioMinimo = producto.getPrecioMinimoVenta() != null
+                ? producto.getPrecioMinimoVenta()
+                : producto.getPrecio();
+
+        if (precioAcordado.compareTo(precioMinimo) < 0) {
+            throw new BadRequestException(
+                    "El precio acordado para " + producto.getNombre()
+                            + " no puede ser menor a S/ " + precioMinimo
+            );
+        }
     }
 }
