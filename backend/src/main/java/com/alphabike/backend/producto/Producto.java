@@ -1,6 +1,7 @@
 package com.alphabike.backend.producto;
 
 import com.alphabike.backend.categoria.Categoria;
+import com.alphabike.backend.proveedor.Proveedor;
 import jakarta.persistence.*;
 import lombok.*;
 import java.math.BigDecimal;
@@ -21,6 +22,10 @@ public class Producto {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "categoria_id", nullable = false)
     private Categoria categoria;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "proveedor_id")
+    private Proveedor proveedor;
 
     @Column(nullable = false)
     private String nombre;

@@ -3,6 +3,8 @@ package com.alphabike.backend.producto;
 import com.alphabike.backend.categoria.Categoria;
 import com.alphabike.backend.categoria.CategoriaRepository;
 import com.alphabike.backend.producto.dto.*;
+import com.alphabike.backend.proveedor.Proveedor;
+import com.alphabike.backend.proveedor.ProveedorRepository;
 import com.alphabike.backend.shared.exception.BadRequestException;
 import com.alphabike.backend.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ public class ProductoService {
 
     private final ProductoRepository productoRepository;
     private final CategoriaRepository categoriaRepository;
+    private final ProveedorRepository proveedorRepository;
 
     public List<ProductoResponse> listar() {
         return productoRepository.findAll()
@@ -41,6 +44,7 @@ public class ProductoService {
     public ProductoResponse crear(ProductoRequest request) {
         Categoria categoria = categoriaRepository.findById(request.getCategoriaId())
                 .orElseThrow(() -> new ResourceNotFoundException("Categoria no encontrada"));
+        Proveedor proveedor = resolveProveedor(request.getProveedorId());
 
         Producto producto = Producto.builder()
                 .nombre(request.getNombre())
@@ -51,6 +55,7 @@ public class ProductoService {
                 .stock(request.getStock())
                 .imagenUrl(request.getImagenUrl())
                 .categoria(categoria)
+                .proveedor(proveedor)
                 .estado(Producto.Estado.ACTIVO)
                 .build();
 
@@ -63,6 +68,7 @@ public class ProductoService {
 
         Categoria categoria = categoriaRepository.findById(request.getCategoriaId())
                 .orElseThrow(() -> new ResourceNotFoundException("Categoria no encontrada"));
+        Proveedor proveedor = resolveProveedor(request.getProveedorId());
 
         producto.setNombre(request.getNombre());
         producto.setDescripcion(request.getDescripcion());
@@ -72,6 +78,7 @@ public class ProductoService {
         producto.setStock(request.getStock());
         producto.setImagenUrl(request.getImagenUrl());
         producto.setCategoria(categoria);
+        producto.setProveedor(proveedor);
 
         return ProductoResponse.from(productoRepository.save(producto));
     }
@@ -103,5 +110,20 @@ public class ProductoService {
         }
 
         return precioMinimo;
+    }
+
+    private Proveedor resolveProveedor(String proveedorId) {
+        if (proveedorId == null || proveedorId.isBlank()) {
+            return null;
+        }
+
+        Proveedor proveedor = proveedorRepository.findById(proveedorId)
+                .orElseThrow(() -> new ResourceNotFoundException("Proveedor no encontrado"));
+
+        if (proveedor.getEstado() != Proveedor.Estado.ACTIVO) {
+            throw new BadRequestException("El proveedor seleccionado esta inactivo");
+        }
+
+        return proveedor;
     }
 }

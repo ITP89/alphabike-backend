@@ -22,6 +22,8 @@ public class ProductoResponse {
     private String estado;
     private String categoriaId;
     private String categoriaNombre;
+    private String proveedorId;
+    private String proveedorNombre;
 
     public static ProductoResponse from(Producto producto) {
         return ProductoResponse.builder()
@@ -36,6 +38,8 @@ public class ProductoResponse {
                 .estado(producto.getEstado().name())
                 .categoriaId(producto.getCategoria().getId())
                 .categoriaNombre(producto.getCategoria().getNombre())
+                .proveedorId(producto.getProveedor() != null ? producto.getProveedor().getId() : null)
+                .proveedorNombre(producto.getProveedor() != null ? producto.getProveedor().getNombre() : null)
                 .build();
     }
 }

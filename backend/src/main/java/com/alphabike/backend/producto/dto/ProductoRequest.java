@@ -33,4 +33,6 @@ public class ProductoRequest {
 
     @NotBlank(message = "La categoria es obligatoria")
     private String categoriaId;
+
+    private String proveedorId;
 }
