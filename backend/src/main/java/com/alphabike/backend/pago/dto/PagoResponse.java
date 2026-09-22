@@ -19,6 +19,10 @@ public class PagoResponse {
     private String metodoPago;
     private String estado;
     private LocalDateTime fecha;
+    private String codigoAutorizacion;
+    private String transaccionId;
+    private String tarjetaMarca;
+    private String tarjetaUltimos4;
 
     public static PagoResponse from(Pago pago) {
         return PagoResponse.builder()
@@ -29,6 +33,10 @@ public class PagoResponse {
                 .metodoPago(pago.getMetodoPago().name())
                 .estado(pago.getEstado().name())
                 .fecha(pago.getFecha())
+                .codigoAutorizacion(pago.getCodigoAutorizacion())
+                .transaccionId(pago.getTransaccionId())
+                .tarjetaMarca(pago.getTarjetaMarca())
+                .tarjetaUltimos4(pago.getTarjetaUltimos4())
                 .build();
     }
 }

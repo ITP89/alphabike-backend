@@ -29,7 +29,7 @@ public class Pago {
     private BigDecimal monto;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "metodo_pago", nullable = false)
+    @Column(name = "metodo_pago", nullable = false, columnDefinition = "VARCHAR(50)")
     private MetodoPago metodoPago;
 
     @Enumerated(EnumType.STRING)
@@ -38,6 +38,18 @@ public class Pago {
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime fecha;
+
+    @Column(name = "codigo_autorizacion")
+    private String codigoAutorizacion;
+
+    @Column(name = "transaccion_id")
+    private String transaccionId;
+
+    @Column(name = "tarjeta_marca")
+    private String tarjetaMarca;
+
+    @Column(name = "tarjeta_ultimos4")
+    private String tarjetaUltimos4;
 
     @PrePersist
     protected void onCreate() {
@@ -49,7 +61,7 @@ public class Pago {
     }
 
     public enum MetodoPago {
-        EFECTIVO, YAPE, PLIN, TRANSFERENCIA
+        EFECTIVO, YAPE, PLIN, TRANSFERENCIA, TARJETA
     }
 
     public enum Estado {

@@ -81,6 +81,10 @@ public class PagoService {
                 .referenciaId(request.getReferenciaId())
                 .monto(request.getMonto())
                 .metodoPago(metodoPago)
+                .codigoAutorizacion(request.getCodigoAutorizacion())
+                .transaccionId(request.getTransaccionId())
+                .tarjetaMarca(request.getTarjetaMarca())
+                .tarjetaUltimos4(request.getTarjetaUltimos4())
                 .estado(Pago.Estado.PAGADO)
                 .build();
 

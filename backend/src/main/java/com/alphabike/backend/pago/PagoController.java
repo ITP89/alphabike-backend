@@ -38,7 +38,7 @@ public class PagoController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO', 'CLIENTE')")
     public ResponseEntity<ApiResponse<PagoResponse>> registrar(
             @Valid @RequestBody PagoRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Pago registrado", pagoService.registrar(request)));

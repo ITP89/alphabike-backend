@@ -26,4 +26,9 @@ public class PagoRequest {
     @NotBlank(message = "El metodo de pago es obligatorio")
     @ValidEnum(enumClass = Pago.MetodoPago.class, message = "El metodo de pago no es valido")
     private String metodoPago;
+
+    private String codigoAutorizacion;
+    private String transaccionId;
+    private String tarjetaMarca;
+    private String tarjetaUltimos4;
 }

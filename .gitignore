@@ -16,3 +16,6 @@ backend/src/main/resources/*.secret.properties
 logs/
 .DS_Store
 Thumbs.db
+backend/data/
+*.db
+
