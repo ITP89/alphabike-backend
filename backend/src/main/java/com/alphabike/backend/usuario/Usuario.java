@@ -40,6 +40,22 @@ public class Usuario {
     @Column(name = "fecha_registro", nullable = false, updatable = false)
     private LocalDateTime fechaRegistro;
 
+    @Builder.Default
+    @Column(name = "email_verificado", nullable = false)
+    private boolean emailVerificado = false;
+
+    @Column(name = "token_verificacion_email")
+    private String tokenVerificacionEmail;
+
+    @Column(name = "fecha_expiracion_verificacion")
+    private LocalDateTime fechaExpiracionVerificacion;
+
+    @Column(name = "token_recuperacion_password")
+    private String tokenRecuperacionPassword;
+
+    @Column(name = "fecha_expiracion_password")
+    private LocalDateTime fechaExpiracionPassword;
+
     @PrePersist
     protected void onCreate() {
         this.fechaRegistro = LocalDateTime.now();

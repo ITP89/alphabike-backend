@@ -19,7 +19,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> register(
             @Valid @RequestBody RegisterRequest request) {
         AuthResponse response = authService.register(request);
-        return ResponseEntity.ok(ApiResponse.ok("Registro exitoso", response));
+        return ResponseEntity.ok(ApiResponse.ok("Registro exitoso. Te hemos enviado un correo de activación.", response));
     }
 
     @PostMapping("/login")
@@ -34,5 +34,33 @@ public class AuthController {
             @AuthenticationPrincipal String email) {
         AuthResponse response = authService.me(email);
         return ResponseEntity.ok(ApiResponse.ok("Usuario autenticado", response));
+    }
+
+    @GetMapping("/verify-email")
+    public ResponseEntity<ApiResponse<String>> verifyEmail(
+            @RequestParam("token") String token) {
+        String mensaje = authService.verificarEmail(token);
+        return ResponseEntity.ok(ApiResponse.ok(mensaje, mensaje));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<String>> forgotPassword(
+            @Valid @RequestBody ForgotPasswordRequest request) {
+        String mensaje = authService.solicitarRecuperacionPassword(request);
+        return ResponseEntity.ok(ApiResponse.ok(mensaje, mensaje));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<String>> resetPassword(
+            @Valid @RequestBody ResetPasswordRequest request) {
+        String mensaje = authService.restablecerPassword(request);
+        return ResponseEntity.ok(ApiResponse.ok(mensaje, mensaje));
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<ApiResponse<String>> resendVerification(
+            @Valid @RequestBody ResendVerificationRequest request) {
+        String mensaje = authService.reenviarVerificacion(request);
+        return ResponseEntity.ok(ApiResponse.ok(mensaje, mensaje));
     }
 }
