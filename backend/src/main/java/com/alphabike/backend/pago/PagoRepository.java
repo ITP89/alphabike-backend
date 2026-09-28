@@ -8,4 +8,9 @@ import java.util.List;
 public interface PagoRepository extends JpaRepository<Pago, String> {
     List<Pago> findByReferenciaId(String referenciaId);
     List<Pago> findByEstado(Pago.Estado estado);
+    boolean existsByReferenciaTipoAndReferenciaIdAndEstado(
+            Pago.ReferenciaTipo referenciaTipo,
+            String referenciaId,
+            Pago.Estado estado
+    );
 }

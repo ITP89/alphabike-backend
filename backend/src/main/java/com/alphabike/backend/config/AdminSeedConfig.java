@@ -49,6 +49,7 @@ public class AdminSeedConfig {
             admin.setTelefono(adminPhone);
             admin.setRol(Usuario.Rol.ADMIN);
             admin.setEstado(Usuario.Estado.ACTIVO);
+            admin.setEmailVerificado(true);
             admin.setPasswordHash(passwordEncoder.encode(adminPassword));
 
             usuarioRepository.save(admin);

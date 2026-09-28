@@ -55,7 +55,7 @@ public class AuthService {
             log.error("Error al procesar envío de correo de activación para {}: {}", email, e.getMessage());
         }
 
-        return toAuthResponse(usuario);
+        return toAuthResponse(usuario, false);
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -74,14 +74,14 @@ public class AuthService {
             throw new BadRequestException("Tu cuenta aún no ha sido activada. Por favor confirma tu correo electrónico antes de ingresar.");
         }
 
-        return toAuthResponse(usuario);
+        return toAuthResponse(usuario, true);
     }
 
     public AuthResponse me(String email) {
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
 
-        return toAuthResponse(usuario);
+        return toAuthResponse(usuario, true);
     }
 
     public String verificarEmail(String token) {
@@ -166,8 +166,10 @@ public class AuthService {
         return "Se ha reenviado un nuevo correo de activación a tu bandeja de entrada.";
     }
 
-    private AuthResponse toAuthResponse(Usuario usuario) {
-        String token = jwtTokenProvider.generateToken(usuario.getEmail(), usuario.getRol().name());
+    private AuthResponse toAuthResponse(Usuario usuario, boolean incluirToken) {
+        String token = incluirToken
+                ? jwtTokenProvider.generateToken(usuario.getEmail(), usuario.getRol().name())
+                : null;
 
         return AuthResponse.builder()
                 .id(usuario.getId())

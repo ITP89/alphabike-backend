@@ -135,6 +135,32 @@ public class PedidoService {
     }
 
     @Transactional
+    public PedidoResponse cancelarPendiente(String id, String emailUsuario) {
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado"));
+        Usuario usuario = usuarioRepository.findByEmail(emailUsuario)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        if (usuario.getRol() == Usuario.Rol.CLIENTE
+                && !pedido.getCliente().getId().equals(usuario.getId())) {
+            throw new UnauthorizedException("No tiene permiso para cancelar este pedido");
+        }
+        if (pedido.getEstado() != Pedido.Estado.PENDIENTE) {
+            throw new BadRequestException("Solo se pueden cancelar pedidos pendientes");
+        }
+
+        for (DetallePedido detalle : detallePedidoRepository.findByPedidoId(id)) {
+            Producto producto = productoRepository.findByIdForUpdate(detalle.getProducto().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
+            producto.setStock(producto.getStock() + detalle.getCantidad());
+            productoRepository.save(producto);
+        }
+
+        pedido.setEstado(Pedido.Estado.CANCELADO);
+        return PedidoResponse.from(pedidoRepository.save(pedido));
+    }
+
+    @Transactional
     public PedidoResponse actualizarPrecioAcordado(String pedidoId, String detalleId,
                                                    BigDecimal precioAcordado) {
         if (precioAcordado == null || precioAcordado.compareTo(BigDecimal.ZERO) <= 0) {

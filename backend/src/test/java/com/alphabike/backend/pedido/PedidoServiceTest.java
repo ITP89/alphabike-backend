@@ -178,4 +178,45 @@ class PedidoServiceTest {
         assertThat(producto.getStock()).isEqualTo(5);
         verify(detallePedidoRepository, never()).save(any());
     }
+
+    @Test
+    void cancelarPedidoPendienteRestauraStock() {
+        Usuario cliente = Usuario.builder()
+                .id("cliente-1")
+                .email("cliente@test.com")
+                .rol(Usuario.Rol.CLIENTE)
+                .build();
+        Producto producto = Producto.builder()
+                .id("producto-1")
+                .nombre("Cadena")
+                .stock(3)
+                .build();
+        Pedido pedido = Pedido.builder()
+                .id("pedido-1")
+                .cliente(cliente)
+                .estado(Pedido.Estado.PENDIENTE)
+                .tipoEntrega(Pedido.TipoEntrega.RECOJO_TIENDA)
+                .costoEnvio(BigDecimal.ZERO)
+                .total(new BigDecimal("30.00"))
+                .build();
+        DetallePedido detalle = DetallePedido.builder()
+                .id("detalle-1")
+                .pedido(pedido)
+                .producto(producto)
+                .cantidad(2)
+                .subtotal(new BigDecimal("30.00"))
+                .build();
+
+        when(pedidoRepository.findById("pedido-1")).thenReturn(Optional.of(pedido));
+        when(usuarioRepository.findByEmail("cliente@test.com")).thenReturn(Optional.of(cliente));
+        when(detallePedidoRepository.findByPedidoId("pedido-1")).thenReturn(List.of(detalle));
+        when(productoRepository.findByIdForUpdate("producto-1")).thenReturn(Optional.of(producto));
+        when(pedidoRepository.save(pedido)).thenReturn(pedido);
+
+        PedidoResponse response = pedidoService.cancelarPendiente("pedido-1", "cliente@test.com");
+
+        assertThat(response.getEstado()).isEqualTo("CANCELADO");
+        assertThat(producto.getStock()).isEqualTo(5);
+        verify(productoRepository).save(producto);
+    }
 }

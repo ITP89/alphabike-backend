@@ -23,6 +23,9 @@ public class EmailService {
     @Value("${app.mail.from:AlphaBike <no-reply@alphabike.com>}")
     private String fromEmail;
 
+    @Value("${app.mail.log-links:false}")
+    private boolean logLinks;
+
     public void enviarVerificacionEmail(String destinatario, String nombre, String token) {
         String enlace = frontendUrl + "/verificar-email?token=" + token;
         String asunto = "Activa tu cuenta en AlphaBike";
@@ -142,8 +145,8 @@ public class EmailService {
             }
         }
 
-        if (!enviadoPorSmtp) {
-            // Modo simulado / desarrollo para asegurar que ningún flujo se bloquee si no hay servidor SMTP en local
+        if (!enviadoPorSmtp && logLinks) {
+            // Solo el perfil demo habilita este registro para facilitar pruebas locales.
             log.info("\n=================================================================="
                     + "\n[ALPHABIKE SIMULADOR DE CORREO - LOCAL DEV]"
                     + "\nTipo:        " + tipo
@@ -152,6 +155,8 @@ public class EmailService {
                     + "\nToken:       " + token
                     + "\nEnlace:      " + enlace
                     + "\n==================================================================");
+        } else if (!enviadoPorSmtp) {
+            log.warn("Correo [{}] no enviado. Configura SMTP; el token no se registrara por seguridad.", tipo);
         }
     }
 }

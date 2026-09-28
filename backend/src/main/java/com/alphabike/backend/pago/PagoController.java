@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -40,7 +41,8 @@ public class PagoController {
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO', 'CLIENTE')")
     public ResponseEntity<ApiResponse<PagoResponse>> registrar(
-            @Valid @RequestBody PagoRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Pago registrado", pagoService.registrar(request)));
+            @Valid @RequestBody PagoRequest request,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.ok("Pago registrado", pagoService.registrar(request, email)));
     }
 }

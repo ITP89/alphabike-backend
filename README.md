@@ -33,6 +33,11 @@ Puedes exportarlas en el sistema o crear `backend/.env` usando como guia `backen
 | `APP_SEED_ADMIN_PHONE` | Telefono del admin seed. |
 | `SPRINGDOC_API_DOCS_ENABLED` | Habilita `/v3/api-docs`. Default: `false`. |
 | `SPRINGDOC_SWAGGER_UI_ENABLED` | Habilita Swagger UI. Default: `false`. |
+| `APP_FRONTEND_URL` | URL del frontend para verificacion y recuperacion. |
+| `MAIL_HOST`, `MAIL_PORT` | Servidor y puerto SMTP. |
+| `MAIL_USERNAME`, `MAIL_PASSWORD` | Credenciales SMTP; no deben subirse a Git. |
+| `APP_MAIL_FROM` | Remitente de los correos de AlphaBike. |
+| `APP_MAIL_LOG_LINKS` | Permite imprimir enlaces con token solo en desarrollo. Default: `false`. |
 
 ## Admin local de desarrollo
 
@@ -86,6 +91,14 @@ mvn test
 ```
 
 Los tests usan perfil `test`, H2 en memoria y Flyway deshabilitado.
+
+## Integridad de compras y pagos
+
+- El registro no entrega una sesion hasta que el correo haya sido verificado.
+- Los pedidos pendientes pueden cancelarse con `PATCH /api/pedidos/{id}/cancelar`; la operacion devuelve el stock reservado.
+- El backend valida propiedad, estado, monto exacto y pago duplicado antes de registrar un pago.
+- La migracion `V25` impide dos pagos aprobados para una misma referencia incluso ante solicitudes concurrentes.
+- El frontend usa un proveedor `SANDBOX` para la demostracion academica. Para cobrar dinero real debe integrarse un proveedor externo y conservarse la validacion del lado servidor.
 
 ## Docker
 

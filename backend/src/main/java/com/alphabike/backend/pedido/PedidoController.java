@@ -65,6 +65,15 @@ public class PedidoController {
                 pedidoService.registrarSeguimiento(id, numeroSeguimiento)));
     }
 
+    @PatchMapping("/{id}/cancelar")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<PedidoResponse>> cancelar(
+            @PathVariable String id,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.ok("Pedido cancelado y stock restaurado",
+                pedidoService.cancelarPendiente(id, email)));
+    }
+
     @PatchMapping("/{id}/detalle/{detalleId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO')")
     public ResponseEntity<ApiResponse<PedidoResponse>> actualizarPrecioAcordado(

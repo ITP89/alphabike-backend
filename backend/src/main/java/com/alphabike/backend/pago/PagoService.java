@@ -7,7 +7,10 @@ import com.alphabike.backend.cotizacion.Cotizacion;
 import com.alphabike.backend.cotizacion.CotizacionRepository;
 import com.alphabike.backend.shared.exception.BadRequestException;
 import com.alphabike.backend.shared.exception.ResourceNotFoundException;
+import com.alphabike.backend.shared.exception.UnauthorizedException;
 import com.alphabike.backend.shared.validation.EnumUtils;
+import com.alphabike.backend.usuario.Usuario;
+import com.alphabike.backend.usuario.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +24,7 @@ public class PagoService {
     private final PagoRepository pagoRepository;
     private final PedidoRepository pedidoRepository;
     private final CotizacionRepository cotizacionRepository;
+    private final UsuarioRepository usuarioRepository;
 
     public List<PagoResponse> listar() {
         return pagoRepository.findAll()
@@ -44,7 +48,7 @@ public class PagoService {
     }
 
     @Transactional
-    public PagoResponse registrar(PagoRequest request) {
+    public PagoResponse registrar(PagoRequest request, String emailUsuario) {
         Pago.ReferenciaTipo tipo = EnumUtils.parse(
                 Pago.ReferenciaTipo.class,
                 request.getReferenciaTipo(),
@@ -56,19 +60,35 @@ public class PagoService {
                 "metodoPago"
         );
 
+        Usuario usuario = usuarioRepository.findByEmail(emailUsuario)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
+
+        if (pagoRepository.existsByReferenciaTipoAndReferenciaIdAndEstado(
+                tipo, request.getReferenciaId(), Pago.Estado.PAGADO)) {
+            throw new BadRequestException("Esta referencia ya tiene un pago registrado");
+        }
+
         if (tipo == Pago.ReferenciaTipo.PEDIDO) {
             Pedido pedido = pedidoRepository.findById(request.getReferenciaId())
                     .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado"));
-            if (request.getMonto().compareTo(pedido.getTotal()) < 0) {
-                throw new BadRequestException("El monto del pago no cubre el total del pedido");
+            validarPropietario(usuario, pedido.getCliente().getId());
+            if (pedido.getEstado() != Pedido.Estado.PENDIENTE) {
+                throw new BadRequestException("El pedido no esta pendiente de pago");
+            }
+            if (request.getMonto().compareTo(pedido.getTotal()) != 0) {
+                throw new BadRequestException("El monto debe coincidir exactamente con el total del pedido");
             }
             pedido.setEstado(Pedido.Estado.PAGADO);
             pedidoRepository.save(pedido);
         } else {
             Cotizacion cotizacion = cotizacionRepository.findById(request.getReferenciaId())
                     .orElseThrow(() -> new ResourceNotFoundException("Cotizacion no encontrada"));
-            if (request.getMonto().compareTo(cotizacion.getMonto()) < 0) {
-                throw new BadRequestException("El monto del pago no cubre la cotizacion");
+            validarPropietario(usuario, cotizacion.getCita().getCliente().getId());
+            if (cotizacion.getEstado() != Cotizacion.Estado.PENDIENTE) {
+                throw new BadRequestException("La cotizacion no esta pendiente de pago");
+            }
+            if (request.getMonto().compareTo(cotizacion.getMonto()) != 0) {
+                throw new BadRequestException("El monto debe coincidir exactamente con la cotizacion");
             }
             cotizacion.setEstado(Cotizacion.Estado.ACEPTADA);
             cotizacion.getCita().setEstado(
@@ -89,5 +109,11 @@ public class PagoService {
                 .build();
 
         return PagoResponse.from(pagoRepository.save(pago));
+    }
+
+    private void validarPropietario(Usuario usuario, String propietarioId) {
+        if (usuario.getRol() == Usuario.Rol.CLIENTE && !usuario.getId().equals(propietarioId)) {
+            throw new UnauthorizedException("No tiene permiso para pagar esta referencia");
+        }
     }
 }

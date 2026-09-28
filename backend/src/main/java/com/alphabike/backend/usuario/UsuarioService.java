@@ -54,6 +54,7 @@ public class UsuarioService {
                 .telefono(request.getTelefono())
                 .rol(EnumUtils.parse(Usuario.Rol.class, request.getRol(), "rol"))
                 .estado(Usuario.Estado.ACTIVO)
+                .emailVerificado(true)
                 .build();
         return UsuarioResponse.from(usuarioRepository.save(usuario));
     }

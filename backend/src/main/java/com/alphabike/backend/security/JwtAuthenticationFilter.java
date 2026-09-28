@@ -35,7 +35,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String email = jwtTokenProvider.getEmailFromToken(token);
 
             usuarioRepository.findByEmail(email)
-                    .filter(usuario -> usuario.getEstado() == Usuario.Estado.ACTIVO)
+                    .filter(usuario -> usuario.getEstado() == Usuario.Estado.ACTIVO
+                            && usuario.isEmailVerificado())
                     .ifPresent(usuario -> {
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(
