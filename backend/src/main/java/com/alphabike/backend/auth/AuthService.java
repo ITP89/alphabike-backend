@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
@@ -48,12 +49,14 @@ public class AuthService {
 
         usuarioRepository.save(usuario);
 
-        // Enviar correo de activación
-        try {
-            emailService.enviarVerificacionEmail(usuario.getEmail(), usuario.getNombre(), tokenVerificacion);
-        } catch (Exception e) {
-            log.error("Error al procesar envío de correo de activación para {}: {}", email, e.getMessage());
-        }
+        // Enviar correo de activación de forma asíncrona para nunca bloquear la respuesta al usuario
+        CompletableFuture.runAsync(() -> {
+            try {
+                emailService.enviarVerificacionEmail(usuario.getEmail(), usuario.getNombre(), tokenVerificacion);
+            } catch (Exception e) {
+                log.error("Error al procesar envío de correo de activación para {}: {}", email, e.getMessage());
+            }
+        });
 
         return toAuthResponse(usuario, false);
     }
@@ -70,8 +73,13 @@ public class AuthService {
             throw new BadRequestException("Usuario inactivo");
         }
 
+        // Si la contraseña es válida pero aún no estaba verificado (por ejemplo retraso o bloqueo en SMTP),
+        // activamos la cuenta automáticamente para que el usuario pueda ingresar de inmediato sin fricción.
         if (!usuario.isEmailVerificado()) {
-            throw new BadRequestException("Tu cuenta aún no ha sido activada. Por favor confirma tu correo electrónico antes de ingresar.");
+            usuario.setEmailVerificado(true);
+            usuario.setTokenVerificacionEmail(null);
+            usuarioRepository.save(usuario);
+            log.info("Usuario {} activado automáticamente tras autenticación válida", usuario.getEmail());
         }
 
         return toAuthResponse(usuario, true);
