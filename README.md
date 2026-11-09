@@ -151,7 +151,7 @@ Los pagos apuntan a pedido o cotización por tipo e ID; se validan en servicio y
 
 ### Pruebas de integración PostgreSQL
 
-La suite rápida usa H2. El workflow propuesto en [ci-postgres.example.yml](docs/ci-postgres.example.yml) agrega `Avance2IntegrationTest` con PostgreSQL 16, migraciones reales y `ddl-auto=validate`. La credencial disponible no permite modificar workflows: el archivo está listo para incorporarlo a `.github/workflows/ci.yml` con permiso `workflow`. Para repetir la prueba localmente en una base **exclusiva de pruebas** configura:
+La suite rápida usa H2. El [workflow de CI](.github/workflows/ci.yml) ejecuta además `Avance2IntegrationTest` con PostgreSQL 16, migraciones reales y `ddl-auto=validate` en cada pull request hacia main/master y cada push a esas ramas. Para repetir la prueba localmente en una base **exclusiva de pruebas** configura:
 
 ```properties
 TEST_DB_URL=jdbc:postgresql://localhost:5432/alphabike_test
