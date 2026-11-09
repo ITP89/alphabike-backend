@@ -15,7 +15,7 @@ Fecha de ejecución local: 9 de noviembre de 2026.
 | npm audit con umbral high | Sin alertas altas o críticas; cuatro moderadas en herramientas de desarrollo |
 | npm audit --omit=dev | Sin vulnerabilidades reportadas |
 
-Entorno local: Windows, Java 25 con objetivo de compilación Java 21, Maven 3.9.11, Node 24, Vite 8.3.7, Vitest 5.1 y PostgreSQL 18.6 en una base temporal exclusiva. El CI activo usa Java 21 y Node 22. El workflow propuesto en ci-postgres.example.yml agrega PostgreSQL 16; su activacion requiere permiso workflow en GitHub.
+Entorno local: Windows, Java 25 con objetivo de compilación Java 21, Maven 3.9.11, Node 24, Vite 8.3.7, Vitest 5.1 y PostgreSQL 18.6 en una base temporal exclusiva. El CI usa Java 21 y Node 22; el workflow del backend incluye un job de integración independiente con PostgreSQL 16 y Flyway habilitado.
 
 ## Flujos comprobados
 
