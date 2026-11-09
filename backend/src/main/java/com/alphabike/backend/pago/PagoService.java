@@ -1,6 +1,9 @@
 package com.alphabike.backend.pago;
 
 import com.alphabike.backend.pago.dto.*;
+import com.alphabike.backend.cita.Cita;
+import com.alphabike.backend.realtime.CitaChanged;
+import org.springframework.context.ApplicationEventPublisher;
 import com.alphabike.backend.pedido.Pedido;
 import com.alphabike.backend.pedido.PedidoRepository;
 import com.alphabike.backend.cotizacion.Cotizacion;
@@ -25,6 +28,7 @@ public class PagoService {
     private final PedidoRepository pedidoRepository;
     private final CotizacionRepository cotizacionRepository;
     private final UsuarioRepository usuarioRepository;
+    private final ApplicationEventPublisher events;
 
     public List<PagoResponse> listar() {
         return pagoRepository.findAll()
@@ -84,6 +88,9 @@ public class PagoService {
             Cotizacion cotizacion = cotizacionRepository.findById(request.getReferenciaId())
                     .orElseThrow(() -> new ResourceNotFoundException("Cotizacion no encontrada"));
             validarPropietario(usuario, cotizacion.getCita().getCliente().getId());
+            if (cotizacion.getCita().getEstado() == Cita.Estado.CANCELADO) {
+                throw new BadRequestException("No se puede pagar una cita cancelada");
+            }
             if (cotizacion.getEstado() != Cotizacion.Estado.PENDIENTE && cotizacion.getEstado() != Cotizacion.Estado.ACEPTADA) {
                 throw new BadRequestException("La cotizacion no esta pendiente de pago");
             }
@@ -94,6 +101,9 @@ public class PagoService {
             cotizacion.getCita().setEstado(
                     com.alphabike.backend.cita.Cita.Estado.COMPLETADO);
             cotizacionRepository.save(cotizacion);
+            Cita cita = cotizacion.getCita();
+            events.publishEvent(new CitaChanged(
+                    cita.getId(), cita.getCliente().getEmail(), cita.getEstado().name()));
         }
 
         Pago pago = Pago.builder()

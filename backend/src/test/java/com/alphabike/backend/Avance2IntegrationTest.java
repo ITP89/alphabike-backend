@@ -74,7 +74,8 @@ class Avance2IntegrationTest {
 
     String appointment() throws Exception {
         var response = request("POST", "/citas", Map.of("servicioId", service(),
-                "fecha", LocalDate.now().plusDays(2).toString(), "hora", "10:00:00"), owner);
+                "fecha", LocalDate.now().plusDays(2).toString(), "hora", "10:00:00",
+                "biciDescripcion", "Bicicleta de prueba"), owner);
         assertThat(response.status()).isEqualTo(200);
         return response.id();
     }
@@ -172,6 +173,54 @@ class Avance2IntegrationTest {
         assertThat(request("POST", "/pagos", payload, staff).status()).isEqualTo(400);
         assertThat(request("POST", "/cotizaciones/cita/" + cita,
                 Map.of("descripcion", "Cambio indebido", "monto", 60), admin).status()).isEqualTo(400);
+    }
+
+    @Test
+    void quotationPaymentPublishesCommittedAppointmentState() throws Exception {
+        String cita = appointment();
+        var quote = request("POST", "/cotizaciones/cita/" + cita,
+                Map.of("descripcion", "Revision", "monto", 50), admin);
+        assertThat(quote.status()).isEqualTo(200);
+        try (var client = new SocketProbe(owner); var stranger = new SocketProbe(other)) {
+            assertThat(client.next().path("type").asText()).isEqualTo("READY");
+            stranger.next();
+            assertThat(request("POST", "/pagos", Map.of("referenciaTipo", "COTIZACION",
+                    "referenciaId", quote.id(), "monto", 50, "metodoPago", "EFECTIVO"), staff).status()).isEqualTo(200);
+            JsonNode event = client.next();
+            assertThat(event.path("type").asText()).isEqualTo("CITA_UPDATED");
+            assertThat(event.path("citaId").asText()).isEqualTo(cita);
+            assertThat(event.path("estado").asText()).isEqualTo("COMPLETADO");
+            assertThat(request("GET", "/citas/" + cita, null, owner).data().path("estado").asText()).isEqualTo("COMPLETADO");
+            assertThat(stranger.messages.poll(300, TimeUnit.MILLISECONDS)).isNull();
+        }
+    }
+
+    @Test
+    void cancelledAppointmentRejectsQuotationPaymentAndReopening() throws Exception {
+        String cita = appointment();
+        var quote = request("POST", "/cotizaciones/cita/" + cita,
+                Map.of("descripcion", "Revision", "monto", 50), admin);
+        assertThat(quote.status()).isEqualTo(200);
+        assertThat(request("DELETE", "/citas/" + cita, null, owner).status()).isEqualTo(200);
+        assertThat(request("POST", "/cotizaciones/cita/" + cita,
+                Map.of("descripcion", "Cambio", "monto", 50), admin).status()).isEqualTo(400);
+        assertThat(request("PATCH", "/cotizaciones/" + quote.id() + "/estado?estado=ACEPTADA", null, owner).status()).isEqualTo(400);
+        assertThat(request("POST", "/pagos", Map.of("referenciaTipo", "COTIZACION",
+                "referenciaId", quote.id(), "monto", 50, "metodoPago", "EFECTIVO"), staff).status()).isEqualTo(400);
+        assertThat(request("PATCH", "/citas/" + cita + "/estado?estado=EN_PROCESO", null, staff).status()).isEqualTo(400);
+        assertThat(request("GET", "/citas/" + cita, null, owner).data().path("estado").asText()).isEqualTo("CANCELADO");
+        assertThat(request("GET", "/pagos/referencia/" + quote.id(), null, admin).data()).isEmpty();
+    }
+
+    @Test
+    void serverValidatesServiceLimitsAndBicycleDescription() throws Exception {
+        assertThat(request("POST", "/servicios", Map.of("nombre", "x".repeat(256),
+                "precioBase", 50, "duracionMin", 30), admin).status()).isEqualTo(400);
+        assertThat(request("POST", "/servicios", Map.of("nombre", "Precision " + UUID.randomUUID(),
+                "precioBase", 50.123, "duracionMin", 30), admin).status()).isEqualTo(400);
+        assertThat(request("POST", "/citas", Map.of("servicioId", service(),
+                "fecha", LocalDate.now().plusDays(2).toString(), "hora", "10:00:00",
+                "biciDescripcion", ""), owner).status()).isEqualTo(400);
     }
 
     @Test

@@ -11,12 +11,15 @@ import java.math.BigDecimal;
 public class ServicioRequest {
 
     @NotBlank(message = "El nombre es obligatorio")
+    @Size(max = 255, message = "El nombre no puede superar 255 caracteres")
     private String nombre;
 
+    @Size(max = 255, message = "La descripcion no puede superar 255 caracteres")
     private String descripcion;
 
     @NotNull(message = "El precio base es obligatorio")
     @DecimalMin(value = "0.0", inclusive = false)
+    @Digits(integer = 8, fraction = 2, message = "El precio admite hasta 8 enteros y 2 decimales")
     private BigDecimal precioBase;
 
     @NotNull(message = "La duracion es obligatoria")

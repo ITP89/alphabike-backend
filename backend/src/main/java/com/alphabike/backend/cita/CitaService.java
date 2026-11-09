@@ -91,7 +91,13 @@ public class CitaService {
     public CitaResponse cambiarEstado(String id, String estado) {
         Cita cita = citaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada"));
-        cita.setEstado(EnumUtils.parse(Cita.Estado.class, estado, "estado"));
+        Cita.Estado nuevoEstado = EnumUtils.parse(Cita.Estado.class, estado, "estado");
+        if (nuevoEstado != cita.getEstado() && (cita.getEstado() == Cita.Estado.CANCELADO
+                || cita.getEstado() == Cita.Estado.COMPLETADO
+                || (cita.getEstado() == Cita.Estado.EN_PROCESO && nuevoEstado == Cita.Estado.PENDIENTE))) {
+            throw new BadRequestException("La transicion de estado de la cita no esta permitida");
+        }
+        cita.setEstado(nuevoEstado);
         return guardarYNotificar(cita);
     }
 

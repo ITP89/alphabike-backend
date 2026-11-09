@@ -30,10 +30,17 @@ public class CotizacionService {
     private final ApplicationEventPublisher events;
 
     private void validarNoPagada(Cotizacion cotizacion) {
+        validarCitaActiva(cotizacion.getCita());
         if (cotizacion.getId() != null && pagoRepository.existsByReferenciaTipoAndReferenciaIdAndEstado(
                 Pago.ReferenciaTipo.COTIZACION, cotizacion.getId(),
                 Pago.Estado.PAGADO)) {
             throw new BadRequestException("No se puede modificar una cotizacion pagada");
+        }
+    }
+
+    private void validarCitaActiva(Cita cita) {
+        if (cita.getEstado() == Cita.Estado.CANCELADO || cita.getEstado() == Cita.Estado.COMPLETADO) {
+            throw new BadRequestException("No se puede modificar la cotizacion de una cita cancelada o completada");
         }
     }
 

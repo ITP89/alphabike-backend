@@ -40,4 +40,15 @@ Después se detuvo y reinició el proceso del backend conservando la misma base 
 
 ## Límites
 
-Estas comprobaciones acreditan los flujos del Avance 2, no una auditoría completa de producción. No se probaron carga masiva, despliegue multiinstancia ni proveedor bancario real. El proyecto conserva el sandbox de pagos académico. La exposición oral y la aprobación de los PR deben realizarlas las personas responsables del trabajo.
+Estas comprobaciones acreditan los flujos del Avance 2, no una auditoría completa de producción. No se probaron carga masiva, despliegue multiinstancia ni proveedor bancario real. El proyecto conserva el sandbox de pagos académico. Los PR del Avance 2 están integrados. La exposición oral corresponde a las personas responsables del trabajo.
+
+## Regresiones corregidas y verificadas — 9 de noviembre de 2026
+
+- Las citas canceladas no admiten creación/modificación de cotizaciones ni cobros; tampoco pueden reabrirse cambiando su estado. Las citas completadas no vuelven a estados anteriores.
+- El pago de una cotización publica CITA_UPDATED después de confirmar la transacción. La prueba verifica el estado persistido y que un cliente ajeno no recibe el evento.
+- La API rechaza con 400 nombres de servicio mayores de 255 caracteres, precios fuera de NUMERIC(10,2) y descripciones de bicicleta vacías o fuera de 4–255 caracteres. Los textos opcionales se limitan a la longitud de sus columnas.
+- Suite backend: 22 pruebas aprobadas. Integración adicional en PostgreSQL 18.6 local con Flyway y validación del esquema: 8 pruebas aprobadas. CI ejecuta la integración también con PostgreSQL 16.
+- Frontend: 11 pruebas aprobadas, incluida crear/editar/eliminar servicios y volver al catálogo sin recargar; lint, typecheck y compilación aprobados.
+- Menú verificado en mantenimiento con sesión administrativa a 320, 375, 768, 1024, 1280 y 1366 px, sin desbordamiento horizontal. No sustituye comprobar visualmente todas las rutas.
+
+Para repetir las regresiones de servidor ejecutar `mvn -B test`; para PostgreSQL usar las variables TEST_DB_* documentadas en la guía. La prueba del catálogo se encuentra en `src/pages/admin/GestionServicios.test.jsx` del frontend.
