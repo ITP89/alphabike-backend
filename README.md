@@ -13,7 +13,7 @@ Las credenciales de Supabase y el JWT secret estuvieron publicadas en `applicati
 
 ## Variables requeridas
 
-Puedes exportarlas en el sistema o crear `backend/.env` usando como guia `backend/src/main/resources/application-example.properties`.
+Copia `backend/.env.example` a `backend/.env` y configura tu PostgreSQL. También puedes exportar variables del sistema; hay un ejemplo ampliado en `backend/src/main/resources/application-example.properties`.
 
 | Variable | Descripcion |
 | --- | --- |
@@ -23,6 +23,7 @@ Puedes exportarlas en el sistema o crear `backend/.env` usando como guia `backen
 | `JWT_SECRET` | Secreto JWT de al menos 32 caracteres. |
 | `JWT_EXPIRATION_MS` | Expiracion del token en milisegundos. Default: `86400000`. |
 | `SERVER_PORT` | Puerto del backend. Default: `8080`. |
+| `WS_ALLOWED_ORIGINS` | Origenes permitidos para `/ws/citas`; hereda `CORS_ALLOWED_ORIGINS` si se omite. |
 | `CORS_ALLOWED_ORIGINS` | Origenes permitidos separados por coma. Default: `http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174`. |
 | `JPA_DDL_AUTO` | Modo Hibernate. Default: `validate`. |
 | `FLYWAY_ENABLED` | Habilita migraciones. Default: `true`. |
@@ -95,7 +96,7 @@ Los tests usan perfil `test`, H2 en memoria y Flyway deshabilitado.
 ## Integridad de compras y pagos
 
 - El registro no entrega una sesion hasta que el correo haya sido verificado.
-- Los pedidos pendientes pueden cancelarse con `PATCH /api/pedidos/{id}/cancelar`; la operacion devuelve el stock reservado.
+- Los pedidos pendientes pueden cancelarse con `PATCH /api/v1/pedidos/{id}/cancelar`; la operacion devuelve el stock reservado.
 - El backend valida propiedad, estado, monto exacto y pago duplicado antes de registrar un pago.
 - La migracion `V25` impide dos pagos aprobados para una misma referencia incluso ante solicitudes concurrentes.
 - El frontend usa un proveedor `SANDBOX` para la demostracion academica. Para cobrar dinero real debe integrarse un proveedor externo y conservarse la validacion del lado servidor.
@@ -117,3 +118,56 @@ Servicios:
 ## Migraciones
 
 Las migraciones viven en `backend/src/main/resources/db/migration`. La migracion inicial crea los esquemas base sin borrar datos. Los resets destructivos deben hacerse manualmente solo en entornos locales.
+
+
+## Avance 2 Semana 14
+
+Implementa CRUD conectado a PostgreSQL, validación, errores centralizados y notificaciones bidireccionales por WebSocket nativo de Spring. El cliente recibe cambios de sus citas; el personal autorizado recibe cambios del taller. Las notificaciones se publican después del commit y la interfaz recupera el estado persistido por REST.
+
+- [Modelo de datos completo y esquemas](docs/diagrama-er.md).
+- [Protocolo, variables, arquitectura y guion de exposición](docs/avance-2.md).
+- `ws://localhost:8080/ws/citas` en desarrollo, `wss://` con HTTPS.
+- Primer frame: `{"type":"AUTH","token":"JWT"}`. Respuesta `READY`; `SYNC` → `CITAS_SYNC`; `PING` → `PONG`.
+- Evento de cambio: `CITA_UPDATED`, con `citaId` y `estado`. Sin tokens en URLs ni eventos de otros clientes.
+- Mantener backend y frontend en procesos separados o usar Docker Compose.
+
+### Diagrama entidad relación
+
+```mermaid
+erDiagram
+    USUARIOS ||--o{ PEDIDOS : compra
+    USUARIOS ||--o{ CITAS : agenda
+    USUARIOS o|--o{ CITAS : atiende
+    CATEGORIAS ||--o{ PRODUCTOS : clasifica
+    PROVEEDORES o|--o{ PRODUCTOS : suministra
+    PEDIDOS ||--|{ DETALLE_PEDIDOS : contiene
+    PRODUCTOS ||--o{ DETALLE_PEDIDOS : vendido
+    SERVICIOS ||--o{ CITAS : solicitado
+    CITAS ||--o| COTIZACIONES : presupuesto
+    CITAS o|--o{ TRABAJOS_REALIZADOS : documenta
+```
+
+Los pagos apuntan a pedido o cotización por tipo e ID; se validan en servicio y tienen unicidad de pago confirmado en PostgreSQL.
+
+### Pruebas de integración PostgreSQL
+
+La suite rápida usa H2. El workflow propuesto en [ci-postgres.example.yml](docs/ci-postgres.example.yml) agrega `Avance2IntegrationTest` con PostgreSQL 16, migraciones reales y `ddl-auto=validate`. La credencial disponible no permite modificar workflows: el archivo está listo para incorporarlo a `.github/workflows/ci.yml` con permiso `workflow`. Para repetir la prueba localmente en una base **exclusiva de pruebas** configura:
+
+```properties
+TEST_DB_URL=jdbc:postgresql://localhost:5432/alphabike_test
+TEST_DB_USERNAME=alphabike
+TEST_DB_PASSWORD=your-local-test-password
+TEST_DB_DRIVER=org.postgresql.Driver
+TEST_DB_DIALECT=org.hibernate.dialect.PostgreSQLDialect
+TEST_SQL_INIT_MODE=never
+TEST_DDL_AUTO=validate
+TEST_FLYWAY_ENABLED=true
+```
+
+Exporta esas variables en tu shell y ejecuta desde `backend`:
+
+```bash
+mvn -B -Dtest=Avance2IntegrationTest test
+```
+
+La suite crea datos de prueba. Nunca apuntar TEST_DB_URL a producción. Las pruebas cubren CRUD HTTP, cotizaciones aceptadas, cancelación idempotente, permisos y conexiones WebSocket reales con aislamiento entre usuarios.
