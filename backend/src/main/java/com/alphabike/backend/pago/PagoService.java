@@ -69,7 +69,7 @@ public class PagoService {
         }
 
         if (tipo == Pago.ReferenciaTipo.PEDIDO) {
-            Pedido pedido = pedidoRepository.findById(request.getReferenciaId())
+            Pedido pedido = pedidoRepository.findByIdForUpdate(request.getReferenciaId())
                     .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado"));
             validarPropietario(usuario, pedido.getCliente().getId());
             if (pedido.getEstado() != Pedido.Estado.PENDIENTE) {
@@ -84,7 +84,7 @@ public class PagoService {
             Cotizacion cotizacion = cotizacionRepository.findById(request.getReferenciaId())
                     .orElseThrow(() -> new ResourceNotFoundException("Cotizacion no encontrada"));
             validarPropietario(usuario, cotizacion.getCita().getCliente().getId());
-            if (cotizacion.getEstado() != Cotizacion.Estado.PENDIENTE) {
+            if (cotizacion.getEstado() != Cotizacion.Estado.PENDIENTE && cotizacion.getEstado() != Cotizacion.Estado.ACEPTADA) {
                 throw new BadRequestException("La cotizacion no esta pendiente de pago");
             }
             if (request.getMonto().compareTo(cotizacion.getMonto()) != 0) {

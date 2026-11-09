@@ -1,5 +1,10 @@
 package com.alphabike.backend.pedido;
 
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -8,6 +13,10 @@ import java.util.Optional;
 
 @Repository
 public interface PedidoRepository extends JpaRepository<Pedido, String> {
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select p from Pedido p where p.id = :id")
+    Optional<Pedido> findByIdForUpdate(@Param("id") String id);
+
 
     @EntityGraph(attributePaths = {"cliente", "detalles", "detalles.producto"})
     List<Pedido> findByClienteId(String clienteId);

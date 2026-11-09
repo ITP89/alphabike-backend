@@ -56,7 +56,7 @@ class PagoServiceTest {
                 .total(new BigDecimal("50.00"))
                 .build();
         when(usuarioRepository.findByEmail(autenticado.getEmail())).thenReturn(Optional.of(autenticado));
-        when(pedidoRepository.findById("pedido-1")).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.findByIdForUpdate("pedido-1")).thenReturn(Optional.of(pedido));
 
         assertThatThrownBy(() -> pagoService.registrar(pagoPedido("pedido-1", "50.00"), autenticado.getEmail()))
                 .isInstanceOf(UnauthorizedException.class)
@@ -74,7 +74,7 @@ class PagoServiceTest {
                 .total(new BigDecimal("50.00"))
                 .build();
         when(usuarioRepository.findByEmail(cliente.getEmail())).thenReturn(Optional.of(cliente));
-        when(pedidoRepository.findById("pedido-1")).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.findByIdForUpdate("pedido-1")).thenReturn(Optional.of(pedido));
 
         assertThatThrownBy(() -> pagoService.registrar(pagoPedido("pedido-1", "49.99"), cliente.getEmail()))
                 .isInstanceOf(BadRequestException.class)

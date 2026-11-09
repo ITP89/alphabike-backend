@@ -1,5 +1,11 @@
 package com.alphabike.backend.cita;
 
+import com.alphabike.backend.realtime.CitaChanged;
+import com.alphabike.backend.shared.exception.BadRequestException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import org.springframework.context.ApplicationEventPublisher;
+
 import com.alphabike.backend.cita.dto.*;
 import com.alphabike.backend.servicio.Servicio;
 import com.alphabike.backend.servicio.ServicioRepository;
@@ -10,16 +16,26 @@ import com.alphabike.backend.usuario.Usuario;
 import com.alphabike.backend.usuario.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class CitaService {
 
     private final CitaRepository citaRepository;
     private final UsuarioRepository usuarioRepository;
     private final ServicioRepository servicioRepository;
+    private final ApplicationEventPublisher events;
+
+    private CitaResponse guardarYNotificar(Cita cita) {
+        Cita guardada = citaRepository.save(cita);
+        events.publishEvent(new CitaChanged(
+                guardada.getId(), guardada.getCliente().getEmail(), guardada.getEstado().name()));
+        return CitaResponse.from(guardada);
+    }
 
     public List<CitaResponse> listar() {
         return citaRepository.findAll()
@@ -50,6 +66,10 @@ public class CitaService {
     }
 
     public CitaResponse crear(CitaRequest request, String clienteEmail) {
+        if (LocalDateTime.of(request.getFecha(), request.getHora())
+                .isBefore(LocalDateTime.now(ZoneId.of("America/Lima")))) {
+            throw new BadRequestException("La cita debe tener una fecha y hora futura");
+        }
         Usuario cliente = usuarioRepository.findByEmail(clienteEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado"));
         Servicio servicio = servicioRepository.findById(request.getServicioId())
@@ -65,14 +85,14 @@ public class CitaService {
                 .estado(Cita.Estado.PENDIENTE)
                 .build();
 
-        return CitaResponse.from(citaRepository.save(cita));
+        return guardarYNotificar(cita);
     }
 
     public CitaResponse cambiarEstado(String id, String estado) {
         Cita cita = citaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada"));
         cita.setEstado(EnumUtils.parse(Cita.Estado.class, estado, "estado"));
-        return CitaResponse.from(citaRepository.save(cita));
+        return guardarYNotificar(cita);
     }
 
     public CitaResponse asignarEncargado(String id, String encargadoId) {
@@ -84,7 +104,7 @@ public class CitaService {
             throw new UnauthorizedException("El usuario no es un encargado");
         }
         cita.setEncargado(encargado);
-        return CitaResponse.from(citaRepository.save(cita));
+        return guardarYNotificar(cita);
     }
 
     public void cancelar(String id, String emailUsuario) {
@@ -96,7 +116,10 @@ public class CitaService {
                 !cita.getCliente().getId().equals(usuario.getId())) {
             throw new UnauthorizedException("No puedes cancelar esta cita");
         }
+        if (cita.getEstado() == Cita.Estado.COMPLETADO) {
+            throw new BadRequestException("No se puede cancelar una cita completada");
+        }
         cita.setEstado(Cita.Estado.CANCELADO);
-        citaRepository.save(cita);
+        guardarYNotificar(cita);
     }
 }
