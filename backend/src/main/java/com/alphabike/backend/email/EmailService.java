@@ -141,7 +141,7 @@ public class EmailService {
                 enviadoPorSmtp = true;
                 log.info("Correo electrónico [{}] enviado exitosamente a {}", tipo, destinatario);
             } catch (Exception e) {
-                log.warn("No se pudo enviar correo por SMTP ({}), registrando en modo simulado/consola: {}", e.getMessage(), enlace);
+                log.warn("No se pudo enviar correo [{}] por SMTP; revisa la configuracion del servidor", tipo);
             }
         }
 

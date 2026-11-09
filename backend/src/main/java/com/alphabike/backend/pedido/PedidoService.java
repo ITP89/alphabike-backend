@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class PedidoService {
 
@@ -120,23 +121,38 @@ public class PedidoService {
     }
 
     public PedidoResponse cambiarEstado(String id, String estado) {
-        Pedido pedido = pedidoRepository.findById(id)
+        Pedido pedido = pedidoRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado"));
-        pedido.setEstado(EnumUtils.parse(Pedido.Estado.class, estado, "estado"));
+        Pedido.Estado nuevoEstado = EnumUtils.parse(Pedido.Estado.class, estado, "estado");
+        if (nuevoEstado == Pedido.Estado.CANCELADO) return cancelarReservado(pedido);
+        if (nuevoEstado == pedido.getEstado()) return PedidoResponse.from(pedido);
+        boolean permitido = switch (pedido.getEstado()) {
+            case PAGADO -> nuevoEstado == Pedido.Estado.EN_PREPARACION;
+            case EN_PREPARACION -> nuevoEstado == Pedido.Estado.LISTO_PARA_RECOJO
+                    || nuevoEstado == Pedido.Estado.EN_CAMINO || nuevoEstado == Pedido.Estado.ENVIADO;
+            case LISTO_PARA_RECOJO, EN_CAMINO, ENVIADO -> nuevoEstado == Pedido.Estado.ENTREGADO;
+            default -> false;
+        };
+        if (!permitido) throw new BadRequestException("Transicion de pedido no permitida; registra el pago antes de preparar");
+        pedido.setEstado(nuevoEstado);
         return PedidoResponse.from(pedidoRepository.save(pedido));
     }
 
     public PedidoResponse registrarSeguimiento(String id, String numeroSeguimiento) {
-        Pedido pedido = pedidoRepository.findById(id)
+        Pedido pedido = pedidoRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado"));
-        pedido.setNumeroSeguimiento(numeroSeguimiento);
+        if (numeroSeguimiento == null || numeroSeguimiento.isBlank()) throw new BadRequestException("El seguimiento es obligatorio");
+        if (pedido.getEstado() != Pedido.Estado.EN_PREPARACION && pedido.getEstado() != Pedido.Estado.ENVIADO) {
+            throw new BadRequestException("Solo se puede enviar un pedido en preparacion");
+        }
+        pedido.setNumeroSeguimiento(numeroSeguimiento.trim());
         pedido.setEstado(Pedido.Estado.ENVIADO);
         return PedidoResponse.from(pedidoRepository.save(pedido));
     }
 
     @Transactional
     public PedidoResponse cancelarPendiente(String id, String emailUsuario) {
-        Pedido pedido = pedidoRepository.findById(id)
+        Pedido pedido = pedidoRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado"));
         Usuario usuario = usuarioRepository.findByEmail(emailUsuario)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
@@ -145,10 +161,15 @@ public class PedidoService {
                 && !pedido.getCliente().getId().equals(usuario.getId())) {
             throw new UnauthorizedException("No tiene permiso para cancelar este pedido");
         }
-        if (pedido.getEstado() != Pedido.Estado.PENDIENTE) {
-            throw new BadRequestException("Solo se pueden cancelar pedidos pendientes");
-        }
+        return cancelarReservado(pedido);
+    }
 
+    private PedidoResponse cancelarReservado(Pedido pedido) {
+        if (pedido.getEstado() == Pedido.Estado.CANCELADO) return PedidoResponse.from(pedido);
+        if (pedido.getEstado() != Pedido.Estado.PENDIENTE) {
+            throw new BadRequestException("Solo se pueden cancelar pedidos pendientes; un pago requiere devolucion explicita");
+        }
+        String id = pedido.getId();
         for (DetallePedido detalle : detallePedidoRepository.findByPedidoId(id)) {
             Producto producto = productoRepository.findByIdForUpdate(detalle.getProducto().getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
@@ -167,6 +188,11 @@ public class PedidoService {
             throw new BadRequestException("El precio acordado debe ser mayor a cero");
         }
 
+        Pedido pedido = pedidoRepository.findByIdForUpdate(pedidoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado"));
+        if (pedido.getEstado() != Pedido.Estado.PENDIENTE) {
+            throw new BadRequestException("Solo se pueden modificar precios de pedidos pendientes");
+        }
         DetallePedido detalle = detallePedidoRepository.findById(detalleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Detalle no encontrado"));
         if (!detalle.getPedido().getId().equals(pedidoId)) {
@@ -177,8 +203,6 @@ public class PedidoService {
         detalle.setSubtotal(precioAcordado.multiply(BigDecimal.valueOf(detalle.getCantidad())));
         detallePedidoRepository.save(detalle);
 
-        Pedido pedido = pedidoRepository.findById(pedidoId)
-                .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado"));
         BigDecimal nuevoTotal = detallePedidoRepository.findByPedidoId(pedidoId)
                 .stream()
                 .map(DetallePedido::getSubtotal)
@@ -189,9 +213,9 @@ public class PedidoService {
     }
 
     private Map<String, Integer> agruparCantidades(List<DetallePedidoRequest> detalles) {
-        Map<String, Integer> cantidades = new LinkedHashMap<>();
+        Map<String, Integer> cantidades = new java.util.TreeMap<>();
         for (DetallePedidoRequest detalle : detalles) {
-            cantidades.merge(detalle.getProductoId(), detalle.getCantidad(), Integer::sum);
+            cantidades.merge(detalle.getProductoId(), detalle.getCantidad(), Math::addExact);
         }
         return cantidades;
     }

@@ -1,5 +1,11 @@
 package com.alphabike.backend.cotizacion;
 
+import com.alphabike.backend.pago.Pago;
+import com.alphabike.backend.pago.PagoRepository;
+import com.alphabike.backend.realtime.CitaChanged;
+import com.alphabike.backend.shared.exception.BadRequestException;
+import org.springframework.context.ApplicationEventPublisher;
+
 import com.alphabike.backend.cita.Cita;
 import com.alphabike.backend.cita.CitaRepository;
 import com.alphabike.backend.cotizacion.dto.*;
@@ -10,14 +16,34 @@ import com.alphabike.backend.usuario.Usuario;
 import com.alphabike.backend.usuario.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class CotizacionService {
 
     private final CotizacionRepository cotizacionRepository;
     private final CitaRepository citaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final PagoRepository pagoRepository;
+    private final ApplicationEventPublisher events;
+
+    private void validarNoPagada(Cotizacion cotizacion) {
+        if (cotizacion.getId() != null && pagoRepository.existsByReferenciaTipoAndReferenciaIdAndEstado(
+                Pago.ReferenciaTipo.COTIZACION, cotizacion.getId(),
+                Pago.Estado.PAGADO)) {
+            throw new BadRequestException("No se puede modificar una cotizacion pagada");
+        }
+    }
+
+    private CotizacionResponse guardarYNotificar(Cotizacion cotizacion) {
+        Cotizacion guardada = cotizacionRepository.save(cotizacion);
+        Cita cita = guardada.getCita();
+        events.publishEvent(new CitaChanged(
+                cita.getId(), cita.getCliente().getEmail(), cita.getEstado().name()));
+        return CotizacionResponse.from(guardada);
+    }
 
     public CotizacionResponse obtener(String id, String emailUsuario) {
         Cotizacion cotizacion = cotizacionRepository.findById(id)
@@ -40,11 +66,12 @@ public class CotizacionService {
         Cotizacion cotizacion = cotizacionRepository.findByCitaId(citaId)
                 .orElse(Cotizacion.builder().cita(cita).build());
 
+        validarNoPagada(cotizacion);
         cotizacion.setDescripcion(request.getDescripcion());
         cotizacion.setMonto(request.getMonto());
         cotizacion.setEstado(Cotizacion.Estado.PENDIENTE);
 
-        return CotizacionResponse.from(cotizacionRepository.save(cotizacion));
+        return guardarYNotificar(cotizacion);
     }
 
     public CotizacionResponse cambiarEstado(String id, String estado, String emailUsuario) {
@@ -65,8 +92,9 @@ public class CotizacionService {
             }
         }
 
+        validarNoPagada(cotizacion);
         cotizacion.setEstado(nuevoEstado);
-        return CotizacionResponse.from(cotizacionRepository.save(cotizacion));
+        return guardarYNotificar(cotizacion);
     }
 
     private void validarAccesoLectura(Cotizacion cotizacion, String emailUsuario) {

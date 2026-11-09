@@ -19,6 +19,7 @@ public class ProveedorController {
     private final ProveedorService proveedorService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO')")
     public ResponseEntity<ApiResponse<List<ProveedorResponse>>> listar() {
         return ResponseEntity.ok(ApiResponse.ok("Proveedores obtenidos", proveedorService.listar()));
     }

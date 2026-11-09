@@ -207,7 +207,7 @@ class PedidoServiceTest {
                 .subtotal(new BigDecimal("30.00"))
                 .build();
 
-        when(pedidoRepository.findById("pedido-1")).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.findByIdForUpdate("pedido-1")).thenReturn(Optional.of(pedido));
         when(usuarioRepository.findByEmail("cliente@test.com")).thenReturn(Optional.of(cliente));
         when(detallePedidoRepository.findByPedidoId("pedido-1")).thenReturn(List.of(detalle));
         when(productoRepository.findByIdForUpdate("producto-1")).thenReturn(Optional.of(producto));

@@ -19,6 +19,7 @@ public class PedidoResponse {
     private String clienteNombre;
     private LocalDateTime fecha;
     private String estado;
+    private String estadoPago;
     private String tipoEntrega;
     private String direccionEntrega;
     private BigDecimal costoEnvio;
@@ -35,6 +36,7 @@ public class PedidoResponse {
         private String id;
         private String productoId;
         private String productoNombre;
+        private String imagenUrl;
         private Integer cantidad;
         private BigDecimal precioLista;
         private BigDecimal precioAcordado;
@@ -45,6 +47,7 @@ public class PedidoResponse {
                     .id(detalle.getId())
                     .productoId(detalle.getProducto().getId())
                     .productoNombre(detalle.getProducto().getNombre())
+                    .imagenUrl(detalle.getProducto().getImagenUrl())
                     .cantidad(detalle.getCantidad())
                     .precioLista(detalle.getPrecioLista())
                     .precioAcordado(detalle.getPrecioAcordado())
@@ -60,6 +63,8 @@ public class PedidoResponse {
                 .clienteNombre(pedido.getCliente().getNombre())
                 .fecha(pedido.getFecha())
                 .estado(pedido.getEstado().name())
+                .estadoPago(pedido.getEstado() == Pedido.Estado.PENDIENTE || pedido.getEstado() == Pedido.Estado.CANCELADO
+                        ? "PENDIENTE" : "PAGADO")
                 .tipoEntrega(pedido.getTipoEntrega().name())
                 .direccionEntrega(pedido.getDireccionEntrega())
                 .costoEnvio(pedido.getCostoEnvio())
