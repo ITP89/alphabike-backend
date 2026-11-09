@@ -1,8 +1,6 @@
 package com.alphabike.backend.auth.dto;
 
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.*;
 
 @Getter
@@ -12,10 +10,12 @@ import lombok.*;
 public class RegisterRequest {
 
     @NotBlank
+    @Size(max = 255, message = "El campo no puede superar 255 caracteres")
     private String nombre;
 
     @NotBlank
     @Email
+    @Size(max = 255, message = "El campo no puede superar 255 caracteres")
     private String email;
 
     @NotBlank
@@ -23,5 +23,6 @@ public class RegisterRequest {
     private String password;
 
     @NotBlank
+    @Size(max = 255, message = "El campo no puede superar 255 caracteres")
     private String telefono;
 }

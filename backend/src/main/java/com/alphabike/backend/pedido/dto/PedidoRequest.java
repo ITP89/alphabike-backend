@@ -17,6 +17,7 @@ public class PedidoRequest {
     @ValidEnum(enumClass = Pedido.TipoEntrega.class, message = "El tipo de entrega no es valido")
     private String tipoEntrega;
 
+    @Size(max = 255, message = "El campo no puede superar 255 caracteres")
     private String direccionEntrega;
 
     @NotEmpty(message = "El pedido debe tener al menos un producto")

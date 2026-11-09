@@ -73,13 +73,8 @@ public class AuthService {
             throw new BadRequestException("Usuario inactivo");
         }
 
-        // Si la contraseña es válida pero aún no estaba verificado (por ejemplo retraso o bloqueo en SMTP),
-        // activamos la cuenta automáticamente para que el usuario pueda ingresar de inmediato sin fricción.
         if (!usuario.isEmailVerificado()) {
-            usuario.setEmailVerificado(true);
-            usuario.setTokenVerificacionEmail(null);
-            usuarioRepository.save(usuario);
-            log.info("Usuario {} activado automáticamente tras autenticación válida", usuario.getEmail());
+            throw new BadRequestException("Tu cuenta no esta verificada. Confirma tu correo antes de iniciar sesion");
         }
 
         return toAuthResponse(usuario, true);

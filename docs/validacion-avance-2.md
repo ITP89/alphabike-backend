@@ -52,3 +52,14 @@ Estas comprobaciones acreditan los flujos del Avance 2, no una auditoría comple
 - Menú verificado en mantenimiento con sesión administrativa a 320, 375, 768, 1024, 1280 y 1366 px, sin desbordamiento horizontal. No sustituye comprobar visualmente todas las rutas.
 
 Para repetir las regresiones de servidor ejecutar `mvn -B test`; para PostgreSQL usar las variables TEST_DB_* documentadas en la guía. La prueba del catálogo se encuentra en `src/pages/admin/GestionServicios.test.jsx` del frontend.
+
+## Ampliacion de correcciones del catalogo y validacion
+
+- Categorias, productos ADMIN/ENCARGADO, stock, compras/cancelaciones y galeria invalidan el catalogo publico despues de mutaciones satisfactorias.
+- Los parametros de stock ausentes, no numericos, fraccionarios, negativos o fuera de Integer responden 400 y conservan el stock anterior.
+- Se ampliaron limites de textos persistidos y precision monetaria en los DTO, incluyendo categorias, productos, cotizaciones y pagos.
+- Login rechaza cuentas sin verificar y no las activa automaticamente; permite el reenvio de verificacion ya disponible en la interfaz.
+- Contacto prepara una consulta por WhatsApp, conserva el borrador e indica que el usuario debe enviarla desde WhatsApp.
+- Resultado local: 26 pruebas backend, 10 integraciones PostgreSQL con Flyway y 16 pruebas frontend aprobadas. Lint, typecheck y compilacion frontend verificados.
+
+La prueba de Contacto simula window.open: no envia datos ni mensajes a terceros. Las pruebas de base de datos usan exclusivamente datos sinteticos.

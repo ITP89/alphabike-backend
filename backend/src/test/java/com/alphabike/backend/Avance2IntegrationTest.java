@@ -224,6 +224,39 @@ class Avance2IntegrationTest {
     }
 
     @Test
+    void invalidParametersAreClientErrorsAndDoNotChangeStock() throws Exception {
+        String category = request("POST", "/categorias", Map.of("nombre", "Parametros " + UUID.randomUUID()), admin).id();
+        String product = request("POST", "/productos", Map.of("nombre", "Stock valido", "marca", "Test",
+                "precio", 40, "stock", 10, "categoriaId", category), admin).id();
+        for (String suffix : new String[]{"?stock=abc", "", "?stock=-1", "?stock=1.5", "?stock=2147483648"}) {
+            var result = request("PATCH", "/productos/" + product + "/stock" + suffix, null, admin);
+            assertThat(result.status()).as(suffix).isEqualTo(400);
+        }
+        assertThat(request("GET", "/productos/" + product, null, owner).data().path("stock").asInt()).isEqualTo(10);
+    }
+
+    @Test
+    void catalogAndQuoteValidationRejectsOversizedValuesBeforePersisting() throws Exception {
+        var category = request("POST", "/categorias", Map.of("nombre", "Valida " + UUID.randomUUID()), admin);
+        assertThat(category.status()).isEqualTo(200);
+        assertThat(request("PUT", "/categorias/" + category.id(), Map.of("nombre", "x".repeat(256)), admin).status()).isEqualTo(400);
+        assertThat(request("POST", "/categorias", Map.of("nombre", "x".repeat(256)), admin).status()).isEqualTo(400);
+        for (Object price : new Object[]{40.001, 100000000}) {
+            assertThat(request("POST", "/productos", Map.of("nombre", "Invalido", "marca", "Test",
+                    "precio", price, "stock", 10, "categoriaId", category.id()), admin).status()).isEqualTo(400);
+        }
+        assertThat(request("POST", "/productos", Map.of("nombre", "x".repeat(256), "marca", "Test",
+                "precio", 40, "stock", 10, "categoriaId", category.id()), admin).status()).isEqualTo(400);
+        String cita = appointment();
+        assertThat(request("POST", "/cotizaciones/cita/" + cita,
+                Map.of("descripcion", "x".repeat(256), "monto", 40), admin).status()).isEqualTo(400);
+        assertThat(request("POST", "/cotizaciones/cita/" + cita,
+                Map.of("descripcion", "Revision", "monto", 40.001), admin).status()).isEqualTo(400);
+        assertThat(request("POST", "/pagos", Map.of("referenciaTipo", "COTIZACION", "referenciaId", "no-existe",
+                "monto", 40.001, "metodoPago", "EFECTIVO"), admin).status()).isEqualTo(400);
+    }
+
+    @Test
     void genericCancellationRestoresStockOnlyOnce() throws Exception {
         String category = request("POST", "/categorias", Map.of("nombre", "Categoria " + UUID.randomUUID()), admin).id();
         String product = request("POST", "/productos", Map.of("nombre", "Producto integrado", "marca", "Test",

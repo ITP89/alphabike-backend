@@ -95,7 +95,7 @@ Los tests usan perfil `test`, H2 en memoria y Flyway deshabilitado.
 
 ## Integridad de compras y pagos
 
-- El registro no entrega una sesion hasta que el correo haya sido verificado.
+- El registro y el inicio de sesion no entregan un JWT hasta verificar el correo. Una cuenta sin verificar recibe un error y puede solicitar el reenvio desde Login. Los usuarios creados por un administrador y los usuarios seed de desarrollo se crean verificados. Configura SMTP antes de probar el registro publico; para una demostracion sin SMTP, crea los usuarios desde el panel administrativo.
 - Los pedidos pendientes pueden cancelarse con `PATCH /api/v1/pedidos/{id}/cancelar`; la operacion devuelve el stock reservado.
 - El backend valida propiedad, estado, monto exacto y pago duplicado antes de registrar un pago.
 - La migracion `V25` impide dos pagos aprobados para una misma referencia incluso ante solicitudes concurrentes.
@@ -171,3 +171,7 @@ mvn -B -Dtest=Avance2IntegrationTest test
 ```
 
 La suite crea datos de prueba. Nunca apuntar TEST_DB_URL a producción. Las pruebas cubren CRUD HTTP, cotizaciones aceptadas, cancelación idempotente, permisos y conexiones WebSocket reales con aislamiento entre usuarios.
+
+### Validacion de entrada
+
+Los textos persistidos se limitan a la longitud de sus columnas y los importes de entrada a NUMERIC(10,2). Parametros ausentes o de tipo incorrecto responden 400; metodos no admitidos, 405; tipos de contenido no admitidos, 415. Las violaciones de integridad persistente siguen respondiendo 409 sin exponer SQL.

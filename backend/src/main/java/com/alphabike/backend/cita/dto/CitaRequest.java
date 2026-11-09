@@ -1,8 +1,6 @@
 package com.alphabike.backend.cita.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -14,6 +12,7 @@ import java.time.LocalTime;
 public class CitaRequest {
 
     @NotBlank(message = "El servicio es obligatorio")
+    @Size(max = 255, message = "El campo no puede superar 255 caracteres")
     private String servicioId;
 
     @NotNull(message = "La fecha es obligatoria")

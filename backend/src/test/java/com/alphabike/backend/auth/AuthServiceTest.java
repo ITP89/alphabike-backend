@@ -29,6 +29,33 @@ class AuthServiceTest {
     @InjectMocks private AuthService authService;
 
     @Test
+    void loginEntregaSesionCuandoElCorreoYaFueVerificado() {
+        Usuario usuario = Usuario.builder().id("cliente-1").email("cliente@test.com").passwordHash("hash")
+                .rol(Usuario.Rol.CLIENTE).estado(Usuario.Estado.ACTIVO).emailVerificado(true).build();
+        when(usuarioRepository.findByEmail(usuario.getEmail())).thenReturn(java.util.Optional.of(usuario));
+        when(passwordEncoder.matches("segura123", "hash")).thenReturn(true);
+        when(jwtTokenProvider.generateToken(usuario.getEmail(), "CLIENTE")).thenReturn("jwt-verificado");
+        AuthResponse response = authService.login(new com.alphabike.backend.auth.dto.LoginRequest(usuario.getEmail(), "segura123"));
+        assertThat(response.getToken()).isEqualTo("jwt-verificado");
+        assertThat(response.isEmailVerificado()).isTrue();
+    }
+
+    @Test
+    void loginNoActivaAutomaticamenteUnCorreoSinVerificar() {
+        Usuario usuario = Usuario.builder().email("cliente@test.com").passwordHash("hash")
+                .estado(Usuario.Estado.ACTIVO).emailVerificado(false).build();
+        when(usuarioRepository.findByEmail(usuario.getEmail())).thenReturn(java.util.Optional.of(usuario));
+        when(passwordEncoder.matches("segura123", "hash")).thenReturn(true);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> authService.login(
+                new com.alphabike.backend.auth.dto.LoginRequest(usuario.getEmail(), "segura123")))
+                .isInstanceOf(com.alphabike.backend.shared.exception.BadRequestException.class)
+                .hasMessageContaining("no esta verificada");
+        assertThat(usuario.isEmailVerificado()).isFalse();
+        verify(usuarioRepository, never()).save(any());
+        verify(jwtTokenProvider, never()).generateToken(any(), any());
+    }
+
+    @Test
     void registroNoEntregaJwtAntesDeVerificarCorreo() {
         RegisterRequest request = new RegisterRequest(
                 "Cliente Test", "CLIENTE@TEST.COM", "segura123", "999999999");

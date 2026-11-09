@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 public class DetallePedidoRequest {
 
     @NotBlank(message = "El producto es obligatorio")
+    @Size(max = 255, message = "El campo no puede superar 255 caracteres")
     private String productoId;
 
     @NotNull(message = "La cantidad es obligatoria")
@@ -18,5 +19,6 @@ public class DetallePedidoRequest {
     private Integer cantidad;
 
     @DecimalMin(value = "0.0", inclusive = false, message = "El precio acordado debe ser mayor a cero")
+    @Digits(integer = 8, fraction = 2, message = "El importe admite hasta 8 enteros y 2 decimales")
     private BigDecimal precioAcordado;
 }
