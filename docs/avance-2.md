@@ -105,7 +105,7 @@ mvn -B test
 
 ## Evidencia de control de versiones
 
-Trabajar en `codex/avance-2-backend` para backend y `codex/avance-2-tiempo-real` para frontend, con PR hacia master y main respectivamente. Los commits deben describir cambios reales, por ejemplo `feat(realtime): notificar cambios de citas mediante websocket`. No dar por realizada la exposición oral: es parte de la entrega del equipo.
+La versión del Avance 2 se mantiene en `master` para backend y `main` para frontend. El historial conserva commits semánticos y pull requests para revisar los cambios. Los commits deben describir cambios reales, por ejemplo `feat(realtime): notificar cambios de citas mediante websocket`. La exposición oral es parte de la entrega del equipo.
 
 ## Alcance académico
 
