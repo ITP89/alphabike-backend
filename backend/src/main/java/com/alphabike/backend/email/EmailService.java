@@ -9,6 +9,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import org.springframework.web.util.HtmlUtils;
 
 @Slf4j
 @Service
@@ -16,6 +17,12 @@ public class EmailService {
 
     @Autowired(required = false)
     private JavaMailSender mailSender;
+
+    @Autowired
+    private ResendEmailSender resendSender;
+
+    @Value("${app.mail.provider:smtp}")
+    private String provider;
 
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
@@ -70,7 +77,7 @@ public class EmailService {
               </table>
             </body>
             </html>
-            """.formatted(nombre, enlace, enlace, enlace);
+            """.formatted(HtmlUtils.htmlEscape(nombre), enlace, enlace, enlace);
 
         enviarHtml(destinatario, asunto, html, "Verificación de Correo", enlace, token);
     }
@@ -120,15 +127,23 @@ public class EmailService {
               </table>
             </body>
             </html>
-            """.formatted(nombre, enlace, enlace, enlace);
+            """.formatted(HtmlUtils.htmlEscape(nombre), enlace, enlace, enlace);
 
         enviarHtml(destinatario, asunto, html, "Recuperación de Contraseña", enlace, token);
     }
 
     private void enviarHtml(String destinatario, String asunto, String html, String tipo, String enlace, String token) {
-        boolean enviadoPorSmtp = false;
+        boolean enviado = false;
 
-        if (mailSender != null) {
+        if ("resend".equalsIgnoreCase(provider)) {
+            try {
+                resendSender.send(fromEmail, destinatario, asunto, html);
+                enviado = true;
+                log.info("Correo [{}] aceptado por Resend", tipo);
+            } catch (Exception e) {
+                log.warn("No se pudo enviar correo [{}] por Resend; revisa API key y dominio verificado", tipo);
+            }
+        } else if ("smtp".equalsIgnoreCase(provider) && mailSender != null) {
             try {
                 MimeMessage message = mailSender.createMimeMessage();
                 MimeMessageHelper helper = new MimeMessageHelper(message, true, StandardCharsets.UTF_8.name());
@@ -138,14 +153,14 @@ public class EmailService {
                 helper.setText(html, true);
 
                 mailSender.send(message);
-                enviadoPorSmtp = true;
+                enviado = true;
                 log.info("Correo electrónico [{}] enviado exitosamente a {}", tipo, destinatario);
             } catch (Exception e) {
                 log.warn("No se pudo enviar correo [{}] por SMTP; revisa la configuracion del servidor", tipo);
             }
         }
 
-        if (!enviadoPorSmtp && logLinks) {
+        if (!enviado && logLinks) {
             // Solo el perfil demo habilita este registro para facilitar pruebas locales.
             log.info("\n=================================================================="
                     + "\n[ALPHABIKE SIMULADOR DE CORREO - LOCAL DEV]"
@@ -155,8 +170,8 @@ public class EmailService {
                     + "\nToken:       " + token
                     + "\nEnlace:      " + enlace
                     + "\n==================================================================");
-        } else if (!enviadoPorSmtp) {
-            log.warn("Correo [{}] no enviado. Configura SMTP; el token no se registrara por seguridad.", tipo);
+        } else if (!enviado) {
+            log.warn("Correo [{}] no enviado. Configura el proveedor de correo; el token no se registrara por seguridad.", tipo);
         }
     }
 }

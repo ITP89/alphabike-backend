@@ -31,7 +31,19 @@ Si se configura manualmente en lugar de Blueprint: Language Docker, Dockerfile P
 
 Render Free bloquea trafico saliente a puertos SMTP 25, 465 y 587. La configuracion Gmail SMTP actual (587) **no funcionara en ese plan**. No considerar verificado el registro publico hasta resolver esta dependencia.
 
-Opciones: proveedor SMTP que admita un puerto permitido (por ejemplo 2525, si su documentacion lo soporta), integrar una API de correo por HTTPS, o seleccionar un plan que permita el SMTP requerido. No se crea ni contrata un proveedor automaticamente.
+El backend incluye transporte HTTPS con Resend. Configurar en las variables privadas de Render:
+
+```dotenv
+APP_MAIL_PROVIDER=resend
+RESEND_API_KEY=<clave privada de envio>
+APP_MAIL_FROM=AlphaBike <cuentas@DOMINIO_VERIFICADO>
+```
+
+La cuenta de Resend debe verificar el dominio del remitente. No usar la direccion Gmail como si fuera un dominio propio. Sin dominio verificado, el remitente de prueba de Resend tiene restricciones de destinatarios y no completa el registro publico general. No se habilita el proveedor sin credenciales validas. Mantener la clave fuera de Git y del frontend.
+
+El cliente usa HTTPS, timeout de conexion de 5 segundos y lectura de 10 segundos. Un rechazo de Resend no se registra como entrega ni dispara otro envio SMTP. No se imprimen respuestas del proveedor, claves ni tokens en produccion. Las pruebas usan un servidor HTTP local y cubren activacion, recuperacion, nombre HTML escapado y rechazos.
+
+Tambien se puede usar un proveedor SMTP que admita un puerto permitido (por ejemplo 2525, si su documentacion lo soporta), o un plan compatible con el SMTP requerido. No se crea ni contrata un proveedor automaticamente.
 
 Para usar un SMTP compatible, agregar en Render `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `APP_MAIL_FROM` y los valores TLS/autenticacion indicados por el proveedor. Mantener `APP_MAIL_LOG_LINKS=false`; no publicar enlaces de activacion. La prueba local SMTP del repositorio verifica el codigo, no las restricciones de red ni la entrega externa de Render.
 
@@ -60,3 +72,5 @@ Fuentes oficiales verificadas el 10/11/2026:
 - https://render.com/docs/docker
 - https://render.com/docs/blueprint-spec
 - https://render.com/docs/websocket
+
+- API de correo HTTPS: https://resend.com/docs/api-reference/emails/send-email
