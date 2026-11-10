@@ -21,5 +21,5 @@ public class PedidoRequest {
     private String direccionEntrega;
 
     @NotEmpty(message = "El pedido debe tener al menos un producto")
-    private List<@Valid DetallePedidoRequest> detalles;
+    private List<@NotNull(message = "Cada detalle del pedido es obligatorio") @Valid DetallePedidoRequest> detalles;
 }

@@ -175,3 +175,5 @@ La suite crea datos de prueba. Nunca apuntar TEST_DB_URL a producción. Las prue
 ### Validacion de entrada
 
 Los textos persistidos se limitan a la longitud de sus columnas y los importes de entrada a NUMERIC(10,2). Parametros ausentes o de tipo incorrecto responden 400; metodos no admitidos, 405; tipos de contenido no admitidos, 415. Las violaciones de integridad persistente siguen respondiendo 409 sin exponer SQL.
+
+Los pedidos de delivery/envio requieren direccion; el recojo en tienda no. No se permiten detalles nulos. Los precios acordados por parametro HTTP se validan tambien en el servicio, junto con subtotales y total calculados, para evitar redondeos silenciosos o desbordamientos de NUMERIC(10,2).

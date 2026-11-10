@@ -63,3 +63,12 @@ Para repetir las regresiones de servidor ejecutar `mvn -B test`; para PostgreSQL
 - Resultado local: 26 pruebas backend, 10 integraciones PostgreSQL con Flyway y 16 pruebas frontend aprobadas. Lint, typecheck y compilacion frontend verificados.
 
 La prueba de Contacto simula window.open: no envia datos ni mensajes a terceros. Las pruebas de base de datos usan exclusivamente datos sinteticos.
+
+## Pedidos e inventario adaptable — 10 de noviembre de 2026
+
+- Cada detalle del pedido debe ser no nulo, contener producto y cantidad positiva. Las cantidades acumuladas fuera de Integer se rechazan con 400.
+- DELIVERY_LIMA y ENVIO_PROVINCIA requieren direccion no vacia; RECOJO_TIENDA permite omitirla. La direccion se guarda sin espacios en los extremos.
+- El precio negociado, tanto al crear como al editar, admite hasta dos decimales y el rango positivo de NUMERIC(10,2). Se validan tambien subtotal y total calculados; un exceso provoca rollback sin reservar stock ni crear el pedido.
+- Los paneles ADMIN y ENCARGADO comparten InventarioProductos: tarjetas con etiquetas en movil y tabla con desplazamiento horizontal interno en pantallas amplias. Stock, edicion y descontinuacion administrativa conservan sus acciones.
+- Verificacion visual local en 320, 375, 768, 1024 y 1366 px: sin superposicion de campos en la primera tarjeta ni desbordamiento horizontal de pagina. Se comprobo visualmente el inventario administrativo; el encargado usa el mismo componente y esta cubierto por las pruebas funcionales de stock.
+- Resultado: 29 pruebas backend, 13 integraciones PostgreSQL y 16 frontend aprobadas; lint, typecheck y build frontend aprobados. Las nuevas pruebas verifican rechazo 400, valores persistidos sin redondeo involuntario y rollback de pedidos/stock.

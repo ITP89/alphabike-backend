@@ -70,6 +70,10 @@ public class PedidoService {
                 request.getTipoEntrega(),
                 "tipoEntrega"
         );
+        if (tipoEntrega != Pedido.TipoEntrega.RECOJO_TIENDA
+                && (request.getDireccionEntrega() == null || request.getDireccionEntrega().isBlank())) {
+            throw new BadRequestException("La direccion es obligatoria para delivery o envio a provincia");
+        }
         BigDecimal costoEnvio = calcularCostoEnvio(tipoEntrega);
         Map<String, Integer> cantidadesPorProducto = agruparCantidades(request.getDetalles());
         Map<String, Producto> productos = cargarYValidarProductos(cantidadesPorProducto);
@@ -78,7 +82,7 @@ public class PedidoService {
                 .cliente(usuario)
                 .estado(Pedido.Estado.PENDIENTE)
                 .tipoEntrega(tipoEntrega)
-                .direccionEntrega(request.getDireccionEntrega())
+                .direccionEntrega(request.getDireccionEntrega() == null ? null : request.getDireccionEntrega().trim())
                 .costoEnvio(costoEnvio)
                 .total(BigDecimal.ZERO)
                 .build();
@@ -99,6 +103,8 @@ public class PedidoService {
             BigDecimal subtotal = precioAcordado.multiply(
                     BigDecimal.valueOf(detalleReq.getCantidad()));
 
+            validarImporte(subtotal);
+
             DetallePedido detalle = DetallePedido.builder()
                     .pedido(pedidoGuardado)
                     .producto(producto)
@@ -115,6 +121,7 @@ public class PedidoService {
             productoRepository.save(producto);
         }
 
+        validarImporte(total.add(costoEnvio));
         pedidoGuardado.setTotal(total.add(costoEnvio));
         pedidoGuardado.setDetalles(detallesGuardados);
         return PedidoResponse.from(pedidoRepository.save(pedidoGuardado));
@@ -188,6 +195,7 @@ public class PedidoService {
             throw new BadRequestException("El precio acordado debe ser mayor a cero");
         }
 
+        validarImporte(precioAcordado);
         Pedido pedido = pedidoRepository.findByIdForUpdate(pedidoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado"));
         if (pedido.getEstado() != Pedido.Estado.PENDIENTE) {
@@ -200,7 +208,9 @@ public class PedidoService {
         }
         validarPrecioAcordado(detalle.getProducto(), precioAcordado);
         detalle.setPrecioAcordado(precioAcordado);
-        detalle.setSubtotal(precioAcordado.multiply(BigDecimal.valueOf(detalle.getCantidad())));
+        BigDecimal subtotal = precioAcordado.multiply(BigDecimal.valueOf(detalle.getCantidad()));
+        validarImporte(subtotal);
+        detalle.setSubtotal(subtotal);
         detallePedidoRepository.save(detalle);
 
         BigDecimal nuevoTotal = detallePedidoRepository.findByPedidoId(pedidoId)
@@ -208,14 +218,24 @@ public class PedidoService {
                 .map(DetallePedido::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .add(pedido.getCostoEnvio() != null ? pedido.getCostoEnvio() : BigDecimal.ZERO);
+        validarImporte(nuevoTotal);
         pedido.setTotal(nuevoTotal);
         return PedidoResponse.from(pedidoRepository.save(pedido));
     }
 
     private Map<String, Integer> agruparCantidades(List<DetallePedidoRequest> detalles) {
+        if (detalles == null || detalles.isEmpty()) throw new BadRequestException("El pedido debe tener productos");
         Map<String, Integer> cantidades = new java.util.TreeMap<>();
         for (DetallePedidoRequest detalle : detalles) {
-            cantidades.merge(detalle.getProductoId(), detalle.getCantidad(), Math::addExact);
+            if (detalle == null || detalle.getProductoId() == null || detalle.getProductoId().isBlank()
+                    || detalle.getCantidad() == null || detalle.getCantidad() < 1) {
+                throw new BadRequestException("Cada detalle debe tener un producto y una cantidad positiva");
+            }
+            try {
+                cantidades.merge(detalle.getProductoId(), detalle.getCantidad(), Math::addExact);
+            } catch (ArithmeticException ex) {
+                throw new BadRequestException("La cantidad acumulada supera el limite permitido");
+            }
         }
         return cantidades;
     }
@@ -253,7 +273,15 @@ public class PedidoService {
         };
     }
 
+    private void validarImporte(BigDecimal importe) {
+        if (importe == null || importe.signum() <= 0 || importe.scale() > 2
+                || importe.compareTo(new BigDecimal("99999999.99")) > 0) {
+            throw new BadRequestException("El importe debe ser positivo, no superar 99999999.99 y tener hasta 2 decimales");
+        }
+    }
+
     private void validarPrecioAcordado(Producto producto, BigDecimal precioAcordado) {
+        validarImporte(precioAcordado);
         BigDecimal precioMinimo = producto.getPrecioMinimoVenta() != null
                 ? producto.getPrecioMinimoVenta()
                 : producto.getPrecio();

@@ -279,4 +279,60 @@ class Avance2IntegrationTest {
         assertThat(request("PATCH", "/pedidos/" + paid.id() + "/estado?estado=EN_PREPARACION", null, admin).status()).isEqualTo(200);
         assertThat(request("GET", "/pedidos/" + paid.id(), null, owner).data().path("estadoPago").asText()).isEqualTo("PAGADO");
     }
+    @Test
+    void invalidOrderLinesAndMissingDeliveryAddressDoNotReserveStock() throws Exception {
+        String category = request("POST", "/categorias", Map.of("nombre", "Entrega " + UUID.randomUUID()), admin).id();
+        String product = request("POST", "/productos", Map.of("nombre", "Producto entrega", "marca", "Test",
+                "precio", 40, "stock", 10, "categoriaId", category), admin).id();
+        Object[] lines = {Map.of("productoId", product, "cantidad", 1)};
+        assertThat(request("POST", "/pedidos", Map.of("tipoEntrega", "RECOJO_TIENDA",
+                "detalles", java.util.Arrays.asList((Object) null)), owner).status()).isEqualTo(400);
+        for (String type : new String[]{"DELIVERY_LIMA", "ENVIO_PROVINCIA"}) {
+            assertThat(request("POST", "/pedidos", Map.of("tipoEntrega", type, "detalles", lines), owner).status()).isEqualTo(400);
+            assertThat(request("POST", "/pedidos", Map.of("tipoEntrega", type, "direccionEntrega", "   ", "detalles", lines), owner).status()).isEqualTo(400);
+        }
+        assertThat(request("GET", "/productos/" + product, null, owner).data().path("stock").asInt()).isEqualTo(10);
+        assertThat(request("GET", "/pedidos/mios", null, owner).data()).isEmpty();
+        assertThat(request("POST", "/pedidos", Map.of("tipoEntrega", "RECOJO_TIENDA", "detalles", lines), owner).status()).isEqualTo(200);
+        var delivery = request("POST", "/pedidos", Map.of("tipoEntrega", "DELIVERY_LIMA",
+                "direccionEntrega", "  Av. Prueba 123  ", "detalles", lines), owner);
+        assertThat(delivery.status()).isEqualTo(200);
+        assertThat(delivery.data().path("direccionEntrega").asText()).isEqualTo("Av. Prueba 123");
+        assertThat(delivery.data().path("total").decimalValue()).isEqualByComparingTo("50.00");
+    }
+
+    @Test
+    void negotiatedPriceRejectsPrecisionAndOverflowWithoutChangingTheOrder() throws Exception {
+        String category = request("POST", "/categorias", Map.of("nombre", "Importes " + UUID.randomUUID()), admin).id();
+        String product = request("POST", "/productos", Map.of("nombre", "Producto importes", "marca", "Test",
+                "precio", 40, "stock", 10, "categoriaId", category), admin).id();
+        var order = request("POST", "/pedidos", Map.of("tipoEntrega", "RECOJO_TIENDA",
+                "detalles", new Object[]{Map.of("productoId", product, "cantidad", 2)}), owner);
+        assertThat(order.status()).isEqualTo(200);
+        String detail = order.data().path("detalles").get(0).path("id").asText();
+        String path = "/pedidos/" + order.id() + "/detalle/" + detail + "?precioAcordado=";
+        for (String price : new String[]{"40.999", "100000000", "50000000", "-1", "0"}) {
+            assertThat(request("PATCH", path + price, null, admin).status()).as(price).isEqualTo(400);
+            var persisted = request("GET", "/pedidos/" + order.id(), null, owner).data();
+            assertThat(persisted.path("total").decimalValue()).isEqualByComparingTo("80.00");
+            assertThat(persisted.path("detalles").get(0).path("precioAcordado").decimalValue()).isEqualByComparingTo("40.00");
+        }
+        assertThat(request("PATCH", path + "45.25", null, admin).status()).isEqualTo(200);
+        assertThat(request("GET", "/pedidos/" + order.id(), null, owner).data().path("total").decimalValue()).isEqualByComparingTo("90.50");
+    }
+
+    @Test
+    void excessiveCalculatedAmountsAndQuantityOverflowRollBackTheReservation() throws Exception {
+        String category = request("POST", "/categorias", Map.of("nombre", "Limites " + UUID.randomUUID()), admin).id();
+        String product = request("POST", "/productos", Map.of("nombre", "Producto limite", "marca", "Test",
+                "precio", 60000000, "stock", 10, "categoriaId", category), admin).id();
+        for (Object[] lines : new Object[][]{
+                {Map.of("productoId", product, "cantidad", 2)},
+                {Map.of("productoId", product, "cantidad", 1), Map.of("productoId", product, "cantidad", 1)},
+                {Map.of("productoId", product, "cantidad", Integer.MAX_VALUE), Map.of("productoId", product, "cantidad", 1)}}) {
+            assertThat(request("POST", "/pedidos", Map.of("tipoEntrega", "RECOJO_TIENDA", "detalles", lines), owner).status()).isEqualTo(400);
+            assertThat(request("GET", "/productos/" + product, null, owner).data().path("stock").asInt()).isEqualTo(10);
+            assertThat(request("GET", "/pedidos/mios", null, owner).data()).isEmpty();
+        }
+    }
 }
