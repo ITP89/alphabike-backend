@@ -8,6 +8,8 @@ Se utilizan ambos motores: PostgreSQL para usuarios, catalogo, citas, ventas y p
 
 Ver [modelo, configuracion, permisos y comprobacion SQL + NoSQL](docs/persistencia-sql-nosql.md). `docker compose up --build -d` levanta ambos motores con volumen persistente. La migracion **V27** crea la cola y las instantaneas iniciales de citas existentes.
 
+Ver [estado comprobado del entorno publicado y pasos de recuperacion](docs/verificacion-entorno-publicado.md). La URL Railway usada por el frontend respondio `Application not found` en la comprobacion del 10/11/2026; las pruebas locales y CI no acreditan ese despliegue.
+
 ## Seguridad urgente
 
 Las credenciales de Supabase y el JWT secret estuvieron publicadas en `application.properties`. Deben rotarse antes de volver a usar el entorno:

@@ -73,4 +73,4 @@ jobs:
           java-version: 21
           cache: maven
       - name: PostgreSQL migrations, HTTP, WebSocket and real MongoDB history
-        run: mvn -B -Dtest=Avance2IntegrationTest,HistorialMongoIntegrationTest test
+        run: mvn -B -Dtest=Avance2IntegrationTest,HistorialMongoIntegrationTest,TallerConcurrencyIntegrationTest test

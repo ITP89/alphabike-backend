@@ -67,7 +67,7 @@ public class CotizacionService {
     }
 
     public CotizacionResponse crearOActualizar(String citaId, CotizacionRequest request) {
-        Cita cita = citaRepository.findById(citaId)
+        Cita cita = citaRepository.findByIdForUpdate(citaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada"));
 
         Cotizacion cotizacion = cotizacionRepository.findByCitaId(citaId)
@@ -82,6 +82,10 @@ public class CotizacionService {
     }
 
     public CotizacionResponse cambiarEstado(String id, String estado, String emailUsuario) {
+        String citaId = cotizacionRepository.findCitaIdById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cotizacion no encontrada"));
+        citaRepository.findByIdForUpdate(citaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada"));
         Cotizacion cotizacion = cotizacionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cotizacion no encontrada"));
 

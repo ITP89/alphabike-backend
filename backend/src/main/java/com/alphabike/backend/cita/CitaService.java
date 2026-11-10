@@ -89,7 +89,7 @@ public class CitaService {
     }
 
     public CitaResponse cambiarEstado(String id, String estado) {
-        Cita cita = citaRepository.findById(id)
+        Cita cita = citaRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada"));
         Cita.Estado nuevoEstado = EnumUtils.parse(Cita.Estado.class, estado, "estado");
         if (nuevoEstado != cita.getEstado() && (cita.getEstado() == Cita.Estado.CANCELADO
@@ -102,7 +102,7 @@ public class CitaService {
     }
 
     public CitaResponse asignarEncargado(String id, String encargadoId) {
-        Cita cita = citaRepository.findById(id)
+        Cita cita = citaRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada"));
         Usuario encargado = usuarioRepository.findById(encargadoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Encargado no encontrado"));
@@ -114,7 +114,7 @@ public class CitaService {
     }
 
     public void cancelar(String id, String emailUsuario) {
-        Cita cita = citaRepository.findById(id)
+        Cita cita = citaRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada"));
         Usuario usuario = usuarioRepository.findByEmail(emailUsuario)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));

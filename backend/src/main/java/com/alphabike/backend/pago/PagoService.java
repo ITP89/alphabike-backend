@@ -27,6 +27,7 @@ public class PagoService {
     private final PagoRepository pagoRepository;
     private final PedidoRepository pedidoRepository;
     private final CotizacionRepository cotizacionRepository;
+    private final com.alphabike.backend.cita.CitaRepository citaRepository;
     private final UsuarioRepository usuarioRepository;
     private final ApplicationEventPublisher events;
 
@@ -85,6 +86,16 @@ public class PagoService {
             pedido.setEstado(Pedido.Estado.PAGADO);
             pedidoRepository.save(pedido);
         } else {
+            // All workshop mutations lock the same parent before loading the quote.
+            // Scalar lookup avoids putting a stale appointment in the persistence context.
+            String citaId = cotizacionRepository.findCitaIdById(request.getReferenciaId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Cotizacion no encontrada"));
+            citaRepository.findByIdForUpdate(citaId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada"));
+            if (pagoRepository.existsByReferenciaTipoAndReferenciaIdAndEstado(
+                    tipo, request.getReferenciaId(), Pago.Estado.PAGADO)) {
+                throw new BadRequestException("Esta referencia ya tiene un pago registrado");
+            }
             Cotizacion cotizacion = cotizacionRepository.findById(request.getReferenciaId())
                     .orElseThrow(() -> new ResourceNotFoundException("Cotizacion no encontrada"));
             validarPropietario(usuario, cotizacion.getCita().getCliente().getId());
