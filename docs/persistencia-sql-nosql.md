@@ -48,7 +48,7 @@ docker compose ps
 docker compose logs --tail=80 backend
 ```
 
-El compose arranca PostgreSQL 16, MongoDB 8.0 con autenticacion, backend y frontend. Los dos motores tienen volumen persistente. No usar `docker compose down -v` si se desean conservar los datos. Las credenciales del compose son solo de desarrollo; en otro entorno usar secretos propios y no exponer las bases a Internet.
+El compose arranca PostgreSQL 16, MongoDB 7.0 con autenticacion, backend y frontend. Los dos motores tienen volumen persistente. No usar `docker compose down -v` si se desean conservar los datos. Las credenciales del compose son solo de desarrollo; en otro entorno usar secretos propios y no exponer las bases a Internet.
 
 Para ejecutar Java directamente, configurar `backend/.env` con los valores PostgreSQL ya documentados y:
 

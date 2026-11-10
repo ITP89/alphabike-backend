@@ -44,7 +44,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       mongo:
-        image: mongo:8.0
+        image: mongo:7.0
         ports:
           - 27017:27017
         options: >-
