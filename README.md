@@ -1,6 +1,12 @@
 # AlphaBike Backend
 
-API REST de AlphaBike construida con Java 21, Spring Boot, Spring Security, JWT, JPA, PostgreSQL y Flyway.
+API REST de AlphaBike construida con Java 21, Spring Boot, Spring Security, JWT, JPA, PostgreSQL, MongoDB y Flyway.
+
+## PostgreSQL + MongoDB
+
+Se utilizan ambos motores: PostgreSQL para usuarios, catalogo, citas, ventas y pagos; MongoDB para el historial persistente de estados de citas, visible para cliente, encargado y administrador. Una outbox transaccional SQL permite reintentar la escritura documental sin perder eventos por una interrupcion de MongoDB.
+
+Ver [modelo, configuracion, permisos y comprobacion SQL + NoSQL](docs/persistencia-sql-nosql.md). `docker compose up --build -d` levanta ambos motores con volumen persistente. La migracion **V27** crea la cola y las instantaneas iniciales de citas existentes.
 
 ## Seguridad urgente
 
@@ -20,6 +26,8 @@ Copia `backend/.env.example` a `backend/.env` y configura tu PostgreSQL. Tambié
 | `DB_URL` | JDBC URL de PostgreSQL. |
 | `DB_USERNAME` | Usuario de base de datos. |
 | `DB_PASSWORD` | Password de base de datos. |
+| `MONGODB_URI` | URI MongoDB de la base `alphabike`, con credenciales y `authSource` cuando corresponda. |
+| `HISTORIAL_ENABLED` | Activa el historial MongoDB. Default `true`; debe estar activo para la entrega SQL + NoSQL. |
 | `JWT_SECRET` | Secreto JWT de al menos 32 caracteres. |
 | `JWT_EXPIRATION_MS` | Expiracion del token en milisegundos. Default: `86400000`. |
 | `SERVER_PORT` | Puerto del backend. Default: `8080`. |

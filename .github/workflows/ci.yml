@@ -43,6 +43,15 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      mongo:
+        image: mongo:8.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand({ping:1}).ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     defaults:
       run:
         working-directory: backend
@@ -55,6 +64,7 @@ jobs:
       TEST_SQL_INIT_MODE: never
       TEST_DDL_AUTO: validate
       TEST_FLYWAY_ENABLED: true
+      MONGO_TEST_URI: mongodb://localhost:27017/alphabike_test?serverSelectionTimeoutMS=2000
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -62,5 +72,5 @@ jobs:
           distribution: temurin
           java-version: 21
           cache: maven
-      - name: Migrations and HTTP WebSocket integration on PostgreSQL
-        run: mvn -B -Dtest=Avance2IntegrationTest test
+      - name: PostgreSQL migrations, HTTP, WebSocket and real MongoDB history
+        run: mvn -B -Dtest=Avance2IntegrationTest,HistorialMongoIntegrationTest test

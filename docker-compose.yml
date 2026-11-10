@@ -15,10 +15,27 @@ services:
       timeout: 5s
       retries: 5
 
+  mongo:
+    image: mongo:8.0
+    command: ["mongod", "--auth", "--bind_ip_all"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: alphabike
+      MONGO_INITDB_ROOT_PASSWORD: alphabike_mongo_dev_password
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - alphabike-mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--username", "alphabike", "--password", "alphabike_mongo_dev_password", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: ./backend
     environment:
+      MONGODB_URI: mongodb://alphabike:alphabike_mongo_dev_password@mongo:27017/alphabike?authSource=admin&serverSelectionTimeoutMS=2000&connectTimeoutMS=2000&socketTimeoutMS=3000
       DB_URL: jdbc:postgresql://postgres:5432/alphabike
       DB_USERNAME: alphabike
       DB_PASSWORD: alphabike_dev_password
@@ -30,6 +47,8 @@ services:
       CORS_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
     depends_on:
       postgres:
+        condition: service_healthy
+      mongo:
         condition: service_healthy
     ports:
       - "8080:8080"
@@ -46,3 +65,4 @@ services:
 
 volumes:
   alphabike-postgres:
+  alphabike-mongo:
