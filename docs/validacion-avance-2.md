@@ -72,3 +72,14 @@ La prueba de Contacto simula window.open: no envia datos ni mensajes a terceros.
 - Los paneles ADMIN y ENCARGADO comparten InventarioProductos: tarjetas con etiquetas en movil y tabla con desplazamiento horizontal interno en pantallas amplias. Stock, edicion y descontinuacion administrativa conservan sus acciones.
 - Verificacion visual local en 320, 375, 768, 1024 y 1366 px: sin superposicion de campos en la primera tarjeta ni desbordamiento horizontal de pagina. Se comprobo visualmente el inventario administrativo; el encargado usa el mismo componente y esta cubierto por las pruebas funcionales de stock.
 - Resultado: 29 pruebas backend, 13 integraciones PostgreSQL y 16 frontend aprobadas; lint, typecheck y build frontend aprobados. Las nuevas pruebas verifican rechazo 400, valores persistidos sin redondeo involuntario y rollback de pedidos/stock.
+
+## Cierre de venta presencial, reportes y pagos moviles — 10 de noviembre de 2026
+
+- Venta presencial atomica: pedido y pago se confirman juntos o revierten juntos. El monto no viaja desde un total JavaScript. V26 incorpora un UUID unico de operacion y hash de solicitud; el reintento concurrente devuelve el mismo pedido/pago y no vuelve a descontar stock.
+- Se verifican 0.10 + 0.20 = 0.30 en el servidor, permisos de cliente rechazados, UUID reutilizado con contenido distinto rechazado y rollback de cobro simulado seguido de reintento satisfactorio.
+- El frontend conserva el mismo identificador ante perdida de respuesta y recarga de pestana, bloquea cambios de un borrador incierto y no envia solicitudes si no puede guardar el identificador localmente.
+- Descuentos, ranking de unidades vendidas y ventas por encargado usan pedidos pagados. Se prueban pagados/en preparacion, pendientes y cancelados. Las citas populares excluyen canceladas; los contadores generales mantienen su significado de registros totales, explicado en la UI/documentacion.
+- Pagos del encargado no superpone referencia/tipo en movil; campos comprobados a 320, 375, 768, 1024 y 1366 px. Historial tambien se adapta y suma solo importes pagados con centimos.
+- Suite backend: 32 pruebas; integracion PostgreSQL: 16 de esas pruebas; frontend: 21 pruebas. Lint, typecheck y build forman parte del CI.
+
+Las pruebas de fallo de cobro usan un spy exclusivamente de test. No se alteran pagos de produccion ni se utiliza una entidad bancaria real. La idempotencia exige conservar el mismo UUID al reintentar; una solicitud nueva con otro UUID representa una operacion nueva.

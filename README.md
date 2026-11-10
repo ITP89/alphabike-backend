@@ -177,3 +177,9 @@ La suite crea datos de prueba. Nunca apuntar TEST_DB_URL a producción. Las prue
 Los textos persistidos se limitan a la longitud de sus columnas y los importes de entrada a NUMERIC(10,2). Parametros ausentes o de tipo incorrecto responden 400; metodos no admitidos, 405; tipos de contenido no admitidos, 415. Las violaciones de integridad persistente siguen respondiendo 409 sin exponer SQL.
 
 Los pedidos de delivery/envio requieren direccion; el recojo en tienda no. No se permiten detalles nulos. Los precios acordados por parametro HTTP se validan tambien en el servicio, junto con subtotales y total calculados, para evitar redondeos silenciosos o desbordamientos de NUMERIC(10,2).
+
+### Venta presencial y reportes
+
+`POST /api/v1/pedidos/venta-presencial` es exclusivo de ADMIN/ENCARGADO y recibe `operacionId` UUID, `metodoPago` y `detalles`. El servidor crea el pedido de recojo y registra el pago con su total exacto dentro de una sola transaccion. Un rechazo revierte pedido y stock. Repetir el mismo UUID y contenido devuelve el mismo pedido; cambiar el contenido con ese UUID se rechaza. V26 agrega las columnas y el indice unico sin borrar datos existentes; Flyway debe permanecer habilitado al actualizar.
+
+Los ingresos se obtienen de pagos confirmados. Descuentos, ventas por encargado y unidades vendidas incluyen solo pedidos con pago confirmado y excluyen cancelados. Los contadores totalPedidos/totalCitas representan registros de todos los estados; servicios populares representa citas no canceladas, no ventas pagadas.

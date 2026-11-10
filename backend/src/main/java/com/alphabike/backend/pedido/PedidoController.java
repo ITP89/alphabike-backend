@@ -18,6 +18,14 @@ import java.util.List;
 public class PedidoController {
 
     private final PedidoService pedidoService;
+    private final VentaPresencialService ventaPresencialService;
+
+    @PostMapping("/venta-presencial")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO')")
+    public ResponseEntity<ApiResponse<PedidoResponse>> ventaPresencial(
+            @Valid @RequestBody VentaPresencialRequest request, @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.ok("Venta registrada", ventaPresencialService.registrar(request, email)));
+    }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO')")

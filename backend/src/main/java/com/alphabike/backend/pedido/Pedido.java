@@ -20,6 +20,12 @@ public class Pedido {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    @Column(name = "operacion_id", unique = true)
+    private String operacionId;
+
+    @Column(name = "solicitud_hash", length = 64)
+    private String solicitudHash;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id", nullable = false)
     private Usuario cliente;

@@ -43,7 +43,7 @@ public class ReporteService {
                 .map(Pago::getMonto)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<DetallePedido> detalles = detallePedidoRepository.findAll();
+        List<DetallePedido> detalles = detallesPagados();
         BigDecimal totalDescuentos = detalles.stream()
                 .map(d -> {
                     BigDecimal lista = d.getPrecioLista() != null ? d.getPrecioLista() : BigDecimal.ZERO;
@@ -65,7 +65,7 @@ public class ReporteService {
     }
 
     public List<DescuentosReporteResponse> reporteDescuentosPorEncargado() {
-        List<DetallePedido> detalles = detallePedidoRepository.findAll();
+        List<DetallePedido> detalles = detallesPagados();
 
         List<Usuario> encargados = usuarioRepository.findAll().stream()
                 .filter(u -> u.getRol() == Usuario.Rol.ENCARGADO)
@@ -107,55 +107,35 @@ public class ReporteService {
         }).toList();
     }
 
-    public List<ProductoPopularResponse> productosPopulares() {
+    private List<DetallePedido> detallesPagados() {
+        Set<String> pagados = pagoRepository.findByEstado(Pago.Estado.PAGADO).stream()
+                .filter(p -> p.getReferenciaTipo() == Pago.ReferenciaTipo.PEDIDO)
+                .map(Pago::getReferenciaId).collect(Collectors.toSet());
         return detallePedidoRepository.findAll().stream()
-                .filter(d -> d.getProducto() != null)
-                .collect(Collectors.groupingBy(
-                        d -> d.getProducto().getId(),
-                        Collectors.summingLong(DetallePedido::getCantidad)
-                ))
-                .entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                .limit(10)
-                .map(e -> {
-                    DetallePedido detalle = detallePedidoRepository.findAll().stream()
-                            .filter(d -> d.getProducto() != null && d.getProducto().getId().equals(e.getKey()))
-                            .findFirst().orElse(null);
-                    String nombre = (detalle != null && detalle.getProducto() != null)
-                            ? detalle.getProducto().getNombre()
-                            : "Producto #" + e.getKey();
-                    return ProductoPopularResponse.builder()
-                            .productoId(e.getKey())
-                            .productoNombre(nombre)
-                            .totalVendido(e.getValue())
-                            .build();
-                })
-                .toList();
+                .filter(d -> d.getPedido() != null && d.getPedido().getEstado() != Pedido.Estado.CANCELADO
+                        && pagados.contains(d.getPedido().getId())).toList();
+    }
+
+    public List<ProductoPopularResponse> productosPopulares() {
+        return detallesPagados().stream().filter(d -> d.getProducto() != null)
+                .collect(Collectors.groupingBy(d -> d.getProducto().getId())).entrySet().stream()
+                .map(e -> ProductoPopularResponse.builder().productoId(e.getKey())
+                        .productoNombre(e.getValue().get(0).getProducto().getNombre())
+                        .totalVendido(e.getValue().stream().mapToLong(DetallePedido::getCantidad).sum()).build())
+                .sorted(Comparator.comparing(ProductoPopularResponse::getTotalVendido).reversed()
+                        .thenComparing(ProductoPopularResponse::getProductoId))
+                .limit(10).toList();
     }
 
     public List<ServicioPopularResponse> serviciosPopulares() {
         return citaRepository.findAll().stream()
-                .filter(c -> c.getServicio() != null)
-                .collect(Collectors.groupingBy(
-                        c -> c.getServicio().getId(),
-                        Collectors.counting()
-                ))
-                .entrySet().stream()
-                .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
-                .limit(10)
-                .map(e -> {
-                    var cita = citaRepository.findAll().stream()
-                            .filter(c -> c.getServicio() != null && c.getServicio().getId().equals(e.getKey()))
-                            .findFirst().orElse(null);
-                    String nombre = (cita != null && cita.getServicio() != null)
-                            ? cita.getServicio().getNombre()
-                            : "Servicio #" + e.getKey();
-                    return ServicioPopularResponse.builder()
-                            .servicioId(e.getKey())
-                            .servicioNombre(nombre)
-                            .totalCitas(e.getValue())
-                            .build();
-                })
-                .toList();
+                .filter(c -> c.getServicio() != null && c.getEstado() != com.alphabike.backend.cita.Cita.Estado.CANCELADO)
+                .collect(Collectors.groupingBy(c -> c.getServicio().getId())).entrySet().stream()
+                .map(e -> ServicioPopularResponse.builder().servicioId(e.getKey())
+                        .servicioNombre(e.getValue().get(0).getServicio().getNombre())
+                        .totalCitas((long) e.getValue().size()).build())
+                .sorted(Comparator.comparing(ServicioPopularResponse::getTotalCitas).reversed()
+                        .thenComparing(ServicioPopularResponse::getServicioId))
+                .limit(10).toList();
     }
 }

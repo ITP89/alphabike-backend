@@ -31,6 +31,7 @@ class Avance2IntegrationTest {
     @Autowired UsuarioRepository usuarios;
     @Autowired PasswordEncoder passwords;
     @Autowired JwtTokenProvider tokens;
+    @org.springframework.boot.test.mock.mockito.SpyBean com.alphabike.backend.pago.PagoService pagosSpy;
     final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     String admin, owner, other, staff;
 
@@ -333,6 +334,86 @@ class Avance2IntegrationTest {
             assertThat(request("POST", "/pedidos", Map.of("tipoEntrega", "RECOJO_TIENDA", "detalles", lines), owner).status()).isEqualTo(400);
             assertThat(request("GET", "/productos/" + product, null, owner).data().path("stock").asInt()).isEqualTo(10);
             assertThat(request("GET", "/pedidos/mios", null, owner).data()).isEmpty();
+        }
+    }
+    @Test
+    void atomicSaleUsesServerTotalAndConcurrentRetriesReturnTheSameOrder() throws Exception {
+        String category = request("POST", "/categorias", Map.of("nombre", "Venta " + UUID.randomUUID()), admin).id();
+        String a = request("POST", "/productos", Map.of("nombre", "Decimal A", "marca", "Test", "precio", 0.1,
+                "stock", 10, "categoriaId", category), admin).id();
+        String b = request("POST", "/productos", Map.of("nombre", "Decimal B", "marca", "Test", "precio", 0.2,
+                "stock", 10, "categoriaId", category), admin).id();
+        String key = UUID.randomUUID().toString();
+        var payload = Map.of("operacionId", key, "metodoPago", "EFECTIVO", "detalles", new Object[]{
+                Map.of("productoId", a, "cantidad", 1, "precioAcordado", 0.1),
+                Map.of("productoId", b, "cantidad", 1, "precioAcordado", 0.2)});
+        java.util.function.Supplier<Result> submit = () -> {
+            try { return request("POST", "/pedidos/venta-presencial", payload, staff); }
+            catch (Exception ex) { throw new CompletionException(ex); }
+        };
+        var first = CompletableFuture.supplyAsync(submit);
+        var second = CompletableFuture.supplyAsync(submit);
+        Result one = first.get(15, TimeUnit.SECONDS), two = second.get(15, TimeUnit.SECONDS);
+        assertThat(one.status()).isEqualTo(200);
+        assertThat(two.status()).isEqualTo(200);
+        assertThat(two.id()).isEqualTo(one.id());
+        var canonicalRetry = Map.of("operacionId", key.toUpperCase(java.util.Locale.ROOT), "metodoPago", "efectivo", "detalles", payload.get("detalles"));
+        assertThat(request("POST", "/pedidos/venta-presencial", canonicalRetry, staff).id()).isEqualTo(one.id());
+        assertThat(one.data().path("total").decimalValue()).isEqualByComparingTo("0.30");
+        assertThat(one.data().path("estado").asText()).isEqualTo("PAGADO");
+        assertThat(request("GET", "/productos/" + a, null, owner).data().path("stock").asInt()).isEqualTo(9);
+        assertThat(request("GET", "/pagos/referencia/" + one.id(), null, admin).data()).hasSize(1);
+        assertThat(request("POST", "/pedidos/venta-presencial", payload, owner).status()).isEqualTo(403);
+        var changed = Map.of("operacionId", key, "metodoPago", "YAPE", "detalles", payload.get("detalles"));
+        assertThat(request("POST", "/pedidos/venta-presencial", changed, staff).status()).isEqualTo(400);
+        assertThat(request("GET", "/productos/" + a, null, owner).data().path("stock").asInt()).isEqualTo(9);
+    }
+
+    @Test
+    void failedAtomicSaleRollsBackOrderPaymentAndStock() throws Exception {
+        String category = request("POST", "/categorias", Map.of("nombre", "Rollback venta " + UUID.randomUUID()), admin).id();
+        String product = request("POST", "/productos", Map.of("nombre", "Producto rollback", "marca", "Test", "precio", 50,
+                "stock", 10, "categoriaId", category), admin).id();
+        String email = tokens.getEmailFromToken(staff);
+        org.mockito.Mockito.doThrow(new com.alphabike.backend.shared.exception.BadRequestException("Cobro rechazado"))
+                .when(pagosSpy).registrar(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.eq(email));
+        var payload = Map.of("operacionId", UUID.randomUUID().toString(), "metodoPago", "EFECTIVO",
+                "detalles", new Object[]{Map.of("productoId", product, "cantidad", 1)});
+        assertThat(request("POST", "/pedidos/venta-presencial", payload, staff).status()).isEqualTo(400);
+        assertThat(request("GET", "/pedidos/mios", null, staff).data()).isEmpty();
+        assertThat(request("GET", "/productos/" + product, null, owner).data().path("stock").asInt()).isEqualTo(10);
+        org.mockito.Mockito.reset(pagosSpy);
+        assertThat(request("POST", "/pedidos/venta-presencial", payload, staff).status()).isEqualTo(200);
+        assertThat(request("GET", "/productos/" + product, null, owner).data().path("stock").asInt()).isEqualTo(9);
+    }
+
+    @Test
+    void reportsCountOnlyPaidSalesAndExcludePendingAndCancelledOrders() throws Exception {
+        var before = request("GET", "/reportes/ventas", null, admin).data().path("totalDescuentos").decimalValue();
+        String category = request("POST", "/categorias", Map.of("nombre", "Reportes " + UUID.randomUUID()), admin).id();
+        String paidProduct = request("POST", "/productos", Map.of("nombre", "Vendido", "marca", "Test", "precio", 100,
+                "precioMinimoVenta", 50, "stock", 10, "categoriaId", category), admin).id();
+        String ignoredProduct = request("POST", "/productos", Map.of("nombre", "No vendido", "marca", "Test", "precio", 100,
+                "precioMinimoVenta", 50, "stock", 10, "categoriaId", category), admin).id();
+        var sale = request("POST", "/pedidos/venta-presencial", Map.of("operacionId", UUID.randomUUID().toString(),
+                "metodoPago", "EFECTIVO", "detalles", new Object[]{Map.of("productoId", paidProduct, "cantidad", 3, "precioAcordado", 80)}), staff);
+        assertThat(sale.status()).isEqualTo(200);
+        assertThat(request("PATCH", "/pedidos/" + sale.id() + "/estado?estado=EN_PREPARACION", null, staff).status()).isEqualTo(200);
+        for (boolean cancel : new boolean[]{false, true}) {
+            var order = request("POST", "/pedidos", Map.of("tipoEntrega", "RECOJO_TIENDA", "detalles",
+                    new Object[]{Map.of("productoId", ignoredProduct, "cantidad", 1, "precioAcordado", 70)}), staff);
+            assertThat(order.status()).isEqualTo(200);
+            if (cancel) assertThat(request("PATCH", "/pedidos/" + order.id() + "/cancelar", null, staff).status()).isEqualTo(200);
+        }
+        var after = request("GET", "/reportes/ventas", null, admin).data().path("totalDescuentos").decimalValue();
+        assertThat(after.subtract(before)).isEqualByComparingTo("60.00");
+        var popular = request("GET", "/reportes/productos-populares", null, admin).data();
+        assertThat(popular.findValuesAsText("productoId")).contains(paidProduct).doesNotContain(ignoredProduct);
+        String staffId = usuarios.findByEmail(tokens.getEmailFromToken(staff)).orElseThrow().getId();
+        var discounts = request("GET", "/reportes/descuentos", null, admin).data();
+        for (var row : discounts) if (row.path("encargadoId").asText().equals(staffId)) {
+            assertThat(row.path("totalVentas").asLong()).isEqualTo(1);
+            assertThat(row.path("totalDescuentos").decimalValue()).isEqualByComparingTo("60.00");
         }
     }
 }
