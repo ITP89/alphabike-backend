@@ -2,6 +2,10 @@
 
 API REST de AlphaBike construida con Java 21, Spring Boot, Spring Security, JWT, JPA, PostgreSQL, MongoDB y Flyway.
 
+## Despliegue en Render
+
+Incluye `render.yaml` para preparar el backend Docker en Render y conectarlo a PostgreSQL/MongoDB externos. Seguir la [guia de despliegue](docs/despliegue-render.md), incluida la limitacion de SMTP del plan gratuito y el cambio de URL del frontend. El archivo no acredita un servicio ya desplegado.
+
 ## PostgreSQL + MongoDB
 
 Se utilizan ambos motores: PostgreSQL para usuarios, catalogo, citas, ventas y pagos; MongoDB para el historial persistente de estados de citas, visible para cliente, encargado y administrador. Una outbox transaccional SQL permite reintentar la escritura documental sin perder eventos por una interrupcion de MongoDB.
