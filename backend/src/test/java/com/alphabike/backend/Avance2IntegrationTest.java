@@ -158,6 +158,16 @@ class Avance2IntegrationTest {
         assertThat(request("GET", "/proveedores", null, staff).status()).isEqualTo(200);
         assertThat(request("GET", "/proveedores", null, owner).status()).isEqualTo(403);
         assertThat(request("POST", "/servicios", Map.of("nombre", ""), admin).status()).isEqualTo(400);
+        assertThat(request("POST", "/servicios", Map.of("nombre", "Precio inferior " + UUID.randomUUID(),
+                "precioBase", 29.99, "duracionMin", 30), admin).status()).isEqualTo(400);
+        String servicioMinimo = request("POST", "/servicios", Map.of("nombre", "Precio mínimo " + UUID.randomUUID(),
+                "precioBase", 30, "duracionMin", 30), admin).data().path("id").asText();
+        assertThat(request("PUT", "/servicios/" + servicioMinimo, Map.of("nombre", "Precio inferior editado",
+                "precioBase", 1, "duracionMin", 30), admin).status()).isEqualTo(400);
+        assertThat(request("GET", "/servicios/" + servicioMinimo, null, admin).data()
+                .path("precioBase").decimalValue()).isEqualByComparingTo("30.00");
+        assertThat(request("DELETE", "/servicios/" + servicioMinimo, null, admin).status()).isEqualTo(200);
+
     }
 
     @Test
