@@ -32,6 +32,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/v1/auth/**", "/ws/citas").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/v1/mercado-pago/webhook").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .requestMatchers("/api/v1/productos/**").permitAll()
                         .requestMatchers("/api/v1/categorias/**").permitAll()

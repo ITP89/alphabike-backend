@@ -171,7 +171,24 @@ public class PedidoService {
         return cancelarReservado(pedido);
     }
 
+    @Transactional
+    public PedidoResponse cancelarMercadoPagoConfirmado(String id, String remoteId) {
+        Pedido pedido = pedidoRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado"));
+        if (!remoteId.equals(pedido.getMercadoPagoOrderId())) {
+            throw new BadRequestException("La operacion no corresponde al pedido");
+        }
+        return liberarReserva(pedido);
+    }
+
     private PedidoResponse cancelarReservado(Pedido pedido) {
+        if (pedido.getEstado() == Pedido.Estado.PENDIENTE && pedido.getMercadoPagoOrderId() != null) {
+            throw new BadRequestException("Espera la confirmacion de cancelacion de Mercado Pago");
+        }
+        return liberarReserva(pedido);
+    }
+
+    private PedidoResponse liberarReserva(Pedido pedido) {
         if (pedido.getEstado() == Pedido.Estado.CANCELADO) return PedidoResponse.from(pedido);
         if (pedido.getEstado() != Pedido.Estado.PENDIENTE) {
             throw new BadRequestException("Solo se pueden cancelar pedidos pendientes; un pago requiere devolucion explicita");
@@ -200,6 +217,9 @@ public class PedidoService {
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado"));
         if (pedido.getEstado() != Pedido.Estado.PENDIENTE) {
             throw new BadRequestException("Solo se pueden modificar precios de pedidos pendientes");
+        }
+        if (pedido.getMercadoPagoOrderId() != null) {
+            throw new BadRequestException("El total del pedido esta reservado para Mercado Pago");
         }
         DetallePedido detalle = detallePedidoRepository.findById(detalleId)
                 .orElseThrow(() -> new ResourceNotFoundException("Detalle no encontrado"));

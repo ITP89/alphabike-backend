@@ -52,6 +52,9 @@ public class PagoService {
                 .toList();
     }
 
+    @org.springframework.beans.factory.annotation.Value("${app.payment.mercado-pago.enabled:false}")
+    private boolean mercadoPagoEnabled;
+
     @Transactional
     public PagoResponse registrar(PagoRequest request, String emailUsuario) {
         Pago.ReferenciaTipo tipo = EnumUtils.parse(
@@ -68,6 +71,11 @@ public class PagoService {
         Usuario usuario = usuarioRepository.findByEmail(emailUsuario)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
 
+        if (metodoPago == Pago.MetodoPago.MERCADO_PAGO
+                || (mercadoPagoEnabled && tipo == Pago.ReferenciaTipo.PEDIDO && usuario.getRol() == Usuario.Rol.CLIENTE)) {
+            throw new BadRequestException("El pago en linea requiere confirmacion de la pasarela");
+        }
+
         if (pagoRepository.existsByReferenciaTipoAndReferenciaIdAndEstado(
                 tipo, request.getReferenciaId(), Pago.Estado.PAGADO)) {
             throw new BadRequestException("Esta referencia ya tiene un pago registrado");
@@ -77,6 +85,9 @@ public class PagoService {
             Pedido pedido = pedidoRepository.findByIdForUpdate(request.getReferenciaId())
                     .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado"));
             validarPropietario(usuario, pedido.getCliente().getId());
+            if (pedido.getMercadoPagoOrderId() != null) {
+                throw new BadRequestException("Este pedido tiene un pago en linea asociado");
+            }
             if (pedido.getEstado() != Pedido.Estado.PENDIENTE) {
                 throw new BadRequestException("El pedido no esta pendiente de pago");
             }

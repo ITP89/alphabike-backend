@@ -13,6 +13,8 @@ import java.util.Optional;
 
 @Repository
 public interface PedidoRepository extends JpaRepository<Pedido, String> {
+    @Query("select p.id from Pedido p where p.mercadoPagoOrderId = :orderId")
+    Optional<String> findIdByMercadoPagoOrderId(@Param("orderId") String orderId);
     Optional<Pedido> findByOperacionId(String operacionId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select p from Pedido p where p.id = :id")

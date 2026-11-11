@@ -61,7 +61,7 @@ public class Pago {
     }
 
     public enum MetodoPago {
-        EFECTIVO, YAPE, PLIN, TRANSFERENCIA, TARJETA
+        EFECTIVO, YAPE, PLIN, TRANSFERENCIA, TARJETA, MERCADO_PAGO
     }
 
     public enum Estado {

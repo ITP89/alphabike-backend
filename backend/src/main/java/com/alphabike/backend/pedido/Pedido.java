@@ -26,6 +26,12 @@ public class Pedido {
     @Column(name = "solicitud_hash", length = 64)
     private String solicitudHash;
 
+    @Column(name = "mercado_pago_order_id", unique = true)
+    private String mercadoPagoOrderId;
+
+    @Column(name = "mercado_pago_checkout_url", length = 2048)
+    private String mercadoPagoCheckoutUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id", nullable = false)
     private Usuario cliente;

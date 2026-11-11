@@ -74,3 +74,35 @@ Fuentes oficiales verificadas el 10/11/2026:
 - https://render.com/docs/websocket
 
 - API de correo HTTPS: https://resend.com/docs/api-reference/emails/send-email
+
+## Mercado Pago Checkout Pro para pedidos de la tienda
+
+La integracion viene desactivada. Validarla primero con un backend y una base
+de datos de pruebas. En Mercado Pago Developers, crear una aplicacion Checkout
+Pro con Orders para un vendedor de Peru. En su configuracion de Webhooks,
+seleccionar **Prueba**, indicar la URL HTTPS del backend con el sufijo
+`/api/v1/mercado-pago/webhook` y habilitar **Order (Mercado Pago)**.
+
+Configurar en el backend de pruebas:
+
+- `MP_CHECKOUT_ENABLED=true`
+- `MP_LIVE=false`
+- `MP_ACCESS_TOKEN`: token de prueba de la aplicacion.
+- `MP_WEBHOOK_SECRET`: firma secreta de Webhooks.
+- `MP_SELLER_ID`: identificador numerico del vendedor devuelto por la API.
+- `APP_FRONTEND_URL`: origen HTTPS del frontend de pruebas.
+
+Guardar las credenciales solo en variables privadas del backend. Publicar primero
+el backend con la migracion V28 y luego el frontend correspondiente. Probar con
+una tarjeta de prueba y comprobar en el panel de Mercado Pago que se recibe el
+webhook y en AlphaBike que el pedido pasa a pagado una sola vez. Repetir con
+una tarjeta rechazada y verificar que el pedido nunca se marca como pagado.
+
+Para habilitar cobros reales, usar la cuenta de vendedor de la empresa, las
+credenciales de produccion, `MP_LIVE=true` y el webhook de produccion. Los
+medios de pago disponibles dependen de Mercado Pago. El alcance es el checkout
+de pedidos de tienda. Reembolsos y contracargos se gestionan en Mercado Pago
+y se concilian manualmente con AlphaBike.
+
+- [Pruebas con Checkout Pro](https://www.mercadopago.com.pe/developers/es/docs/checkout-pro-orders/integration-test/test-purchase-with-card)
+- [Configuracion de notificaciones](https://www.mercadopago.com.pe/developers/es/docs/checkout-pro-orders/notifications)
