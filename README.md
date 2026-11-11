@@ -4,7 +4,7 @@ API REST de AlphaBike construida con Java 21, Spring Boot, Spring Security, JWT,
 
 ## Despliegue en Render
 
-Incluye `render.yaml` para preparar el backend Docker en Render y conectarlo a PostgreSQL/MongoDB externos. Seguir la [guia de despliegue](docs/despliegue-render.md), incluida la limitacion de SMTP del plan gratuito y el cambio de URL del frontend. El archivo no acredita un servicio ya desplegado.
+Incluye `render.yaml` para preparar el backend Docker en Render y conectarlo a PostgreSQL/MongoDB externos. Seguir la [guia de despliegue](docs/despliegue-render.md), incluida la limitacion de SMTP del plan gratuito y el cambio de URL del frontend. La API principal se publica en [Render](https://alphabike-backend.onrender.com/api/v1/servicios) desde la rama `master`. La tienda principal se publica en [Vercel](https://alphabike-frontend.vercel.app) desde la rama `main` del frontend.
 
 ## PostgreSQL + MongoDB
 
@@ -12,7 +12,6 @@ Se utilizan ambos motores: PostgreSQL para usuarios, catalogo, citas, ventas y p
 
 Ver [modelo, configuracion, permisos y comprobacion SQL + NoSQL](docs/persistencia-sql-nosql.md). `docker compose up --build -d` levanta ambos motores con volumen persistente. La migracion **V27** crea la cola y las instantaneas iniciales de citas existentes.
 
-Ver [estado comprobado del entorno publicado y pasos de recuperacion](docs/verificacion-entorno-publicado.md). La URL Railway usada por el frontend respondio `Application not found` en la comprobacion del 10/11/2026; las pruebas locales y CI no acreditan ese despliegue.
 
 ## Seguridad urgente
 
@@ -51,6 +50,8 @@ Copia `backend/.env.example` a `backend/.env` y configura tu PostgreSQL. Tambié
 | `APP_FRONTEND_URL` | URL del frontend para verificacion y recuperacion. |
 | `MAIL_HOST`, `MAIL_PORT` | Servidor y puerto SMTP. |
 | `MAIL_USERNAME`, `MAIL_PASSWORD` | Credenciales SMTP; no deben subirse a Git. |
+| `APP_MAIL_PROVIDER` | Transporte de correo. Usar `resend` en Render para envío por HTTPS. |
+| `RESEND_API_KEY` | Clave privada de Resend. Configurar solo en el backend. |
 | `APP_MAIL_FROM` | Remitente de los correos de AlphaBike. |
 | `APP_MAIL_LOG_LINKS` | Permite imprimir enlaces con token solo en desarrollo. Default: `false`. |
 
@@ -109,11 +110,15 @@ Los tests usan perfil `test`, H2 en memoria y Flyway deshabilitado.
 
 ## Integridad de compras y pagos
 
-- El registro y el inicio de sesion no entregan un JWT hasta verificar el correo. Una cuenta sin verificar recibe un error y puede solicitar el reenvio desde Login. Los usuarios creados por un administrador y los usuarios seed de desarrollo se crean verificados. Configura SMTP antes de probar el registro publico; para una demostracion sin SMTP, crea los usuarios desde el panel administrativo.
+- El registro y el inicio de sesion no entregan un JWT hasta verificar el correo. Una cuenta sin verificar recibe un error y puede solicitar el reenvio desde Login. Los usuarios creados por un administrador y los usuarios seed de desarrollo se crean verificados. El backend publicado usa Resend para verificación de correo y recuperación de contraseña. En desarrollo puedes configurar SMTP o crear cuentas desde el panel administrativo.
 - Los pedidos pendientes pueden cancelarse con `PATCH /api/v1/pedidos/{id}/cancelar`; la operacion devuelve el stock reservado.
 - El backend valida propiedad, estado, monto exacto y pago duplicado antes de registrar un pago.
 - La migracion `V25` impide dos pagos aprobados para una misma referencia incluso ante solicitudes concurrentes.
-- El frontend usa un proveedor `SANDBOX` para la demostracion academica. Para cobrar dinero real debe integrarse un proveedor externo y conservarse la validacion del lado servidor.
+- Mercado Pago Checkout Pro está integrado en `master` y `main`. El [entorno de pruebas](https://alphabike-pagos-pruebas.onrender.com) usa un backend y una base separados. El backend principal mantiene Mercado Pago desactivado por defecto y no requiere credenciales para iniciar.
+
+### Mercado Pago en modo de prueba
+
+En el backend de pruebas configura `MP_CHECKOUT_ENABLED=true` y `MP_LIVE=false`. Guarda `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET` y `MP_SELLER_ID` como variables privadas de Render. Configura el evento **Order (Mercado Pago)** para el endpoint de prueba `/api/v1/mercado-pago/webhook`. El backend valida la firma del aviso y consulta el estado de la orden en Mercado Pago antes de registrar el pago. Consulta la [guía de despliegue](docs/despliegue-render.md#mercado-pago-checkout-pro-para-pedidos-de-la-tienda).
 
 ## Docker
 

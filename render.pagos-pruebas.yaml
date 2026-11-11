@@ -4,7 +4,7 @@ services:
     runtime: docker
     plan: free
     region: oregon
-    branch: codex/mercadopago-pruebas
+    branch: master
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
     healthCheckPath: /api/v1/servicios
@@ -47,7 +47,7 @@ services:
     name: alphabike-pagos-pruebas
     runtime: static
     repo: https://github.com/ITP89/alphabike-frontend
-    branch: codex/mercadopago-pruebas
+    branch: main
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
     envVars:
