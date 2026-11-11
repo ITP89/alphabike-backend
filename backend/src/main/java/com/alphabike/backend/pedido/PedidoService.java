@@ -135,8 +135,12 @@ public class PedidoService {
         if (nuevoEstado == pedido.getEstado()) return PedidoResponse.from(pedido);
         boolean permitido = switch (pedido.getEstado()) {
             case PAGADO -> nuevoEstado == Pedido.Estado.EN_PREPARACION;
-            case EN_PREPARACION -> nuevoEstado == Pedido.Estado.LISTO_PARA_RECOJO
-                    || nuevoEstado == Pedido.Estado.EN_CAMINO || nuevoEstado == Pedido.Estado.ENVIADO;
+            case EN_PREPARACION -> switch (pedido.getTipoEntrega()) {
+                case RECOJO_TIENDA -> nuevoEstado == Pedido.Estado.LISTO_PARA_RECOJO;
+                case DELIVERY_LIMA -> nuevoEstado == Pedido.Estado.EN_CAMINO;
+                case ENVIO_PROVINCIA -> nuevoEstado == Pedido.Estado.ENVIADO
+                        && pedido.getNumeroSeguimiento() != null && !pedido.getNumeroSeguimiento().isBlank();
+            };
             case LISTO_PARA_RECOJO, EN_CAMINO, ENVIADO -> nuevoEstado == Pedido.Estado.ENTREGADO;
             default -> false;
         };
@@ -148,6 +152,10 @@ public class PedidoService {
     public PedidoResponse registrarSeguimiento(String id, String numeroSeguimiento) {
         Pedido pedido = pedidoRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pedido no encontrado"));
+        if (pedido.getTipoEntrega() != Pedido.TipoEntrega.ENVIO_PROVINCIA) {
+            throw new BadRequestException("La guia solo corresponde a envios a provincia");
+        }
+        if (numeroSeguimiento != null && numeroSeguimiento.length() > 100) throw new BadRequestException("La guia admite hasta 100 caracteres");
         if (numeroSeguimiento == null || numeroSeguimiento.isBlank()) throw new BadRequestException("El seguimiento es obligatorio");
         if (pedido.getEstado() != Pedido.Estado.EN_PREPARACION && pedido.getEstado() != Pedido.Estado.ENVIADO) {
             throw new BadRequestException("Solo se puede enviar un pedido en preparacion");
@@ -181,6 +189,15 @@ public class PedidoService {
         return liberarReserva(pedido);
     }
 
+    @Transactional
+    public boolean liberarReservaVencida(String id, java.time.LocalDateTime limite) {
+        Pedido pedido = pedidoRepository.findByIdForUpdate(id).orElse(null);
+        if (pedido == null || pedido.getEstado() != Pedido.Estado.PENDIENTE
+                || pedido.getMercadoPagoOrderId() != null || !pedido.getFecha().isBefore(limite)) return false;
+        liberarReserva(pedido);
+        return true;
+    }
+
     private PedidoResponse cancelarReservado(Pedido pedido) {
         if (pedido.getEstado() == Pedido.Estado.PENDIENTE && pedido.getMercadoPagoOrderId() != null) {
             throw new BadRequestException("Espera la confirmacion de cancelacion de Mercado Pago");
@@ -194,7 +211,8 @@ public class PedidoService {
             throw new BadRequestException("Solo se pueden cancelar pedidos pendientes; un pago requiere devolucion explicita");
         }
         String id = pedido.getId();
-        for (DetallePedido detalle : detallePedidoRepository.findByPedidoId(id)) {
+        for (DetallePedido detalle : detallePedidoRepository.findByPedidoId(id).stream()
+                .sorted(java.util.Comparator.comparing(d -> d.getProducto().getId())).toList()) {
             Producto producto = productoRepository.findByIdForUpdate(detalle.getProducto().getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
             producto.setStock(producto.getStock() + detalle.getCantidad());

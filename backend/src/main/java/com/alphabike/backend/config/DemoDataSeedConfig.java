@@ -43,7 +43,7 @@ public class DemoDataSeedConfig {
 
             ensureServicio(servicioRepository, "Mantenimiento general", "Revision, ajuste de frenos, cambios y limpieza completa", "70.00", 90);
             ensureServicio(servicioRepository, "Ajuste de frenos", "Calibracion y revision de pastillas o zapatas", "35.00", 45);
-            ensureServicio(servicioRepository, "Diagnostico tecnico", "Revision inicial para detectar fallas y preparar cotizacion", "25.00", 30);
+            ensureServicio(servicioRepository, "Diagnostico tecnico", "Revision inicial para detectar fallas y preparar cotizacion", "30.00", 30);
 
             ensureProducto(productoRepository, accesorios, "Casco urbano Alpha", "Casco ventilado para uso diario", "AlphaBike", "89.90", 12);
             ensureProducto(productoRepository, accesorios, "Luz LED recargable", "Luz delantera USB con tres modos", "Rider", "45.00", 18);

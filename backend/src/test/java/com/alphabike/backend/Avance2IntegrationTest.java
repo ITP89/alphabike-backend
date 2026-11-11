@@ -160,7 +160,7 @@ class Avance2IntegrationTest {
         assertThat(request("POST", "/servicios", Map.of("nombre", ""), admin).status()).isEqualTo(400);
         assertThat(request("POST", "/servicios", Map.of("nombre", "Precio inferior " + UUID.randomUUID(),
                 "precioBase", 29.99, "duracionMin", 30), admin).status()).isEqualTo(400);
-        String servicioMinimo = request("POST", "/servicios", Map.of("nombre", "Precio mínimo " + UUID.randomUUID(),
+        String servicioMinimo = request("POST", "/servicios", Map.of("nombre", "Precio minimo " + UUID.randomUUID(),
                 "precioBase", 30, "duracionMin", 30), admin).data().path("id").asText();
         assertThat(request("PUT", "/servicios/" + servicioMinimo, Map.of("nombre", "Precio inferior editado",
                 "precioBase", 1, "duracionMin", 30), admin).status()).isEqualTo(400);
@@ -426,4 +426,57 @@ class Avance2IntegrationTest {
             assertThat(row.path("totalDescuentos").decimalValue()).isEqualByComparingTo("60.00");
         }
     }
+    @Test void orderDeliveryFlowAndInventoryAdjustmentsRespectServerRules() throws Exception {
+        String category = request("POST", "/categorias", Map.of("nombre", "Flujos " + UUID.randomUUID()), admin).id();
+        String product = request("POST", "/productos", Map.of("nombre", "Luz prueba", "marca", "Test", "precio", 95,
+                "stock", 10, "categoriaId", category), admin).id();
+        for (String type : new String[]{"RECOJO_TIENDA", "DELIVERY_LIMA", "ENVIO_PROVINCIA"}) {
+            var order = request("POST", "/pedidos", Map.of("tipoEntrega", type, "direccionEntrega", "Calle pruebas 123",
+                    "detalles", java.util.List.of(Map.of("productoId", product, "cantidad", 1))), owner);
+            assertThat(order.status()).isEqualTo(200);
+            assertThat(order.data().path("clienteEmail").asText()).endsWith("@test.invalid");
+            assertThat(order.data().path("detalles").get(0).path("precioAcordado").asInt()).isEqualTo(95);
+            assertThat(request("PATCH", "/pedidos/" + order.id() + "/estado?estado=EN_PREPARACION", null, staff).status()).isEqualTo(400);
+            assertThat(request("POST", "/pagos", Map.of("referenciaTipo", "PEDIDO", "referenciaId", order.id(),
+                    "monto", order.data().path("total").decimalValue(), "metodoPago", "EFECTIVO"), staff).status()).isEqualTo(200);
+            assertThat(request("PATCH", "/pedidos/" + order.id() + "/estado?estado=EN_PREPARACION", null, staff).status()).isEqualTo(200);
+            String destination = type.equals("RECOJO_TIENDA") ? "LISTO_PARA_RECOJO" : type.equals("DELIVERY_LIMA") ? "EN_CAMINO" : "ENVIADO";
+            String wrong = type.equals("RECOJO_TIENDA") ? "EN_CAMINO" : "LISTO_PARA_RECOJO";
+            assertThat(request("PATCH", "/pedidos/" + order.id() + "/estado?estado=" + wrong, null, staff).status()).isEqualTo(400);
+            String path = type.equals("ENVIO_PROVINCIA") ? "/seguimiento?numeroSeguimiento=GUIA123" : "/estado?estado=" + destination;
+            assertThat(request("PATCH", "/pedidos/" + order.id() + path, null, staff).status()).isEqualTo(200);
+            assertThat(request("PATCH", "/pedidos/" + order.id() + "/estado?estado=ENTREGADO", null, staff).status()).isEqualTo(200);
+        }
+        // An old catalog form must not restore inventory consumed by the orders.
+        assertThat(request("PUT", "/productos/" + product, Map.of("nombre", "Luz editada", "marca", "Test", "precio", 95,
+                "stock", 10, "categoriaId", category), admin).data().path("stock").asInt()).isEqualTo(7);
+        assertThat(request("PATCH", "/productos/" + product + "/stock?stock=20&stockEsperado=10", null, admin).status()).isEqualTo(409);
+        assertThat(request("PATCH", "/productos/" + product + "/stock?stock=20&stockEsperado=7", null, admin).status()).isEqualTo(200);
+        assertThat(request("GET", "/productos/" + product, null, owner).data().path("stock").asInt()).isEqualTo(20);
+    }
+
+    @Test void appointmentAssignmentAndPendingPaymentReferencesRespectRoles() throws Exception {
+        String id = appointment();
+        assertThat(request("PATCH", "/citas/" + id + "/tomar", null, owner).status()).isEqualTo(403);
+        assertThat(request("PATCH", "/citas/" + id + "/tomar", null, staff).data().path("encargadoId").asText()).isNotBlank();
+        assertThat(request("PATCH", "/citas/" + id + "/tomar", null, identity(Usuario.Rol.ENCARGADO)).status()).isEqualTo(400);
+        String quote = request("POST", "/cotizaciones/cita/" + id, Map.of("descripcion", "Revision", "monto", 50), staff).id();
+        assertThat(request("GET", "/pagos/referencias-pendientes", null, owner).status()).isEqualTo(403);
+        var refs = request("GET", "/pagos/referencias-pendientes", null, admin);
+        assertThat(refs.status()).isEqualTo(200);
+        assertThat(refs.data().toString()).contains(quote);
+        request("PATCH", "/citas/" + id + "/estado?estado=CANCELADO", null, staff);
+        assertThat(request("PATCH", "/citas/" + id + "/tomar", null, staff).status()).isEqualTo(400);
+        assertThat(request("GET", "/pagos/referencias-pendientes", null, admin).data().toString()).doesNotContain(quote);
+    }
+
+    @Test void reportPeriodsAreInclusiveAndRejectInvertedDates() throws Exception {
+        assertThat(request("GET", "/reportes/ventas?desde=2026-12-01&hasta=2026-01-01", null, admin).status()).isEqualTo(400);
+        assertThat(request("GET", "/reportes/ventas?desde=1900-01-01&hasta=1900-01-02", null, admin).data()
+                .path("ingresosTotales").decimalValue()).isEqualByComparingTo("0");
+        assertThat(request("GET", "/reportes/productos-populares?desde=1900-01-01&hasta=1900-01-02", null, admin).data()).isEmpty();
+        assertThat(request("GET", "/mercado-pago/config", null, admin).status()).isEqualTo(200);
+        assertThat(request("GET", "/mercado-pago/config", null, other).status()).isEqualTo(200);
+    }
+
 }

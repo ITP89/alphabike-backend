@@ -20,7 +20,6 @@ public class PerfilRequest {
     @Size(max = 255, message = "El campo no puede superar 255 caracteres")
     private String email;
 
-    @NotBlank(message = "El telefono es obligatorio")
     @Size(max = 255, message = "El campo no puede superar 255 caracteres")
     private String telefono;
 

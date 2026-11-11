@@ -38,6 +38,26 @@ public class PagoService {
                 .toList();
     }
 
+    public record ReferenciaPendiente(String id, String tipo, String descripcion, java.math.BigDecimal monto) {}
+
+    @Transactional(readOnly = true)
+    public List<ReferenciaPendiente> referenciasPendientes() {
+        var pagadas = pagoRepository.findByEstado(Pago.Estado.PAGADO).stream()
+                .map(p -> p.getReferenciaTipo().name() + ":" + p.getReferenciaId())
+                .collect(java.util.stream.Collectors.toSet());
+        var result = new java.util.ArrayList<ReferenciaPendiente>();
+        pedidoRepository.findByEstado(Pedido.Estado.PENDIENTE).stream()
+                .filter(p -> p.getMercadoPagoOrderId() == null && !pagadas.contains("PEDIDO:" + p.getId()))
+                .forEach(p -> result.add(new ReferenciaPendiente(p.getId(), "PEDIDO",
+                        p.getCliente().getNombre() + " · Pedido #" + p.getId().substring(0, 8), p.getTotal())));
+        cotizacionRepository.findAll().stream()
+                .filter(c -> c.getCita().getEstado() != Cita.Estado.CANCELADO && c.getCita().getEstado() != Cita.Estado.COMPLETADO
+                        && c.getEstado() != Cotizacion.Estado.RECHAZADA && !pagadas.contains("COTIZACION:" + c.getId()))
+                .forEach(c -> result.add(new ReferenciaPendiente(c.getId(), "COTIZACION",
+                        c.getCita().getCliente().getNombre() + " · " + c.getCita().getServicio().getNombre(), c.getMonto())));
+        return result;
+    }
+
     public List<PagoResponse> listarPendientes() {
         return pagoRepository.findByEstado(Pago.Estado.PENDIENTE)
                 .stream()

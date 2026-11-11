@@ -17,6 +17,7 @@ public class PedidoResponse {
     private String id;
     private String clienteId;
     private String clienteNombre;
+    private String clienteEmail;
     private LocalDateTime fecha;
     private String estado;
     private String estadoPago;
@@ -61,6 +62,7 @@ public class PedidoResponse {
                 .id(pedido.getId())
                 .clienteId(pedido.getCliente().getId())
                 .clienteNombre(pedido.getCliente().getNombre())
+                .clienteEmail(pedido.getCliente().getEmail())
                 .fecha(pedido.getFecha())
                 .estado(pedido.getEstado().name())
                 .estadoPago(pedido.getEstado() == Pedido.Estado.PENDIENTE || pedido.getEstado() == Pedido.Estado.CANCELADO

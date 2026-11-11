@@ -18,28 +18,32 @@ public class ReporteController {
 
     @GetMapping("/ventas")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<VentasReporteResponse>> ventas() {
-        return ResponseEntity.ok(ApiResponse.ok("Reporte de ventas", reporteService.reporteVentas()));
+    public ResponseEntity<ApiResponse<VentasReporteResponse>> ventas(@RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate desde,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate hasta) {
+        return ResponseEntity.ok(ApiResponse.ok("Reporte de ventas", reporteService.reporteVentas(desde, hasta)));
     }
 
     @GetMapping("/descuentos")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<DescuentosReporteResponse>>> descuentos() {
+    public ResponseEntity<ApiResponse<List<DescuentosReporteResponse>>> descuentos(@RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate desde,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate hasta) {
         return ResponseEntity.ok(ApiResponse.ok("Reporte de descuentos",
-                reporteService.reporteDescuentosPorEncargado()));
+                reporteService.reporteDescuentosPorEncargado(desde, hasta)));
     }
 
     @GetMapping("/productos-populares")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<ProductoPopularResponse>>> productosPopulares() {
+    public ResponseEntity<ApiResponse<List<ProductoPopularResponse>>> productosPopulares(@RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate desde,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate hasta) {
         return ResponseEntity.ok(ApiResponse.ok("Productos populares",
-                reporteService.productosPopulares()));
+                reporteService.productosPopulares(desde, hasta)));
     }
 
     @GetMapping("/servicios-populares")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<ServicioPopularResponse>>> serviciosPopulares() {
+    public ResponseEntity<ApiResponse<List<ServicioPopularResponse>>> serviciosPopulares(@RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate desde,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate hasta) {
         return ResponseEntity.ok(ApiResponse.ok("Servicios populares",
-                reporteService.serviciosPopulares()));
+                reporteService.serviciosPopulares(desde, hasta)));
     }
 }

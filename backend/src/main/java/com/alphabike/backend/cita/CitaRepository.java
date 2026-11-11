@@ -9,6 +9,9 @@ import java.util.Optional;
 @Repository
 public interface CitaRepository extends JpaRepository<Cita, String> {
 
+    @EntityGraph(attributePaths = {"servicio"})
+    List<Cita> findByFecha(java.time.LocalDate fecha);
+
     // Lock only the parent row: eager outer joins are incompatible with FOR UPDATE
     // on nullable relations in PostgreSQL. Lazy relations are read in the service transaction.
     @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)

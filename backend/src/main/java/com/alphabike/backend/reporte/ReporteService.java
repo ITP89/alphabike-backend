@@ -30,8 +30,12 @@ public class ReporteService {
     private final PagoRepository pagoRepository;
     private final UsuarioRepository usuarioRepository;
 
-    public VentasReporteResponse reporteVentas() {
-        List<Pago> pagos = pagoRepository.findByEstado(Pago.Estado.PAGADO);
+    public VentasReporteResponse reporteVentas() { return reporteVentas(null, null); }
+
+    public VentasReporteResponse reporteVentas(java.time.LocalDate desde, java.time.LocalDate hasta) {
+        validarPeriodo(desde, hasta);
+        List<Pago> pagos = pagoRepository.findByEstado(Pago.Estado.PAGADO).stream()
+                .filter(p -> enPeriodo(p.getFecha().toLocalDate(), desde, hasta)).toList();
 
         BigDecimal ingresosPedidos = pagos.stream()
                 .filter(p -> p.getReferenciaTipo() == Pago.ReferenciaTipo.PEDIDO)
@@ -43,7 +47,7 @@ public class ReporteService {
                 .map(Pago::getMonto)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        List<DetallePedido> detalles = detallesPagados();
+        List<DetallePedido> detalles = detallesPagados(desde, hasta);
         BigDecimal totalDescuentos = detalles.stream()
                 .map(d -> {
                     BigDecimal lista = d.getPrecioLista() != null ? d.getPrecioLista() : BigDecimal.ZERO;
@@ -58,14 +62,17 @@ public class ReporteService {
                 .ingresosTotales(ingresosPedidos.add(ingresosServicios))
                 .ingresosPedidos(ingresosPedidos)
                 .ingresosServicios(ingresosServicios)
-                .totalPedidos((long) pedidoRepository.findAll().size())
-                .totalCitas((long) citaRepository.findAll().size())
+                .totalPedidos(pedidoRepository.findAll().stream().filter(p -> enPeriodo(p.getFecha().toLocalDate(), desde, hasta)).count())
+                .totalCitas(citaRepository.findAll().stream().filter(c -> enPeriodo(c.getFecha(), desde, hasta)).count())
                 .totalDescuentos(totalDescuentos)
                 .build();
     }
 
-    public List<DescuentosReporteResponse> reporteDescuentosPorEncargado() {
-        List<DetallePedido> detalles = detallesPagados();
+    public List<DescuentosReporteResponse> reporteDescuentosPorEncargado() { return reporteDescuentosPorEncargado(null, null); }
+
+    public List<DescuentosReporteResponse> reporteDescuentosPorEncargado(java.time.LocalDate desde, java.time.LocalDate hasta) {
+        validarPeriodo(desde, hasta);
+        List<DetallePedido> detalles = detallesPagados(desde, hasta);
 
         List<Usuario> encargados = usuarioRepository.findAll().stream()
                 .filter(u -> u.getRol() == Usuario.Rol.ENCARGADO)
@@ -107,17 +114,20 @@ public class ReporteService {
         }).toList();
     }
 
-    private List<DetallePedido> detallesPagados() {
+    private List<DetallePedido> detallesPagados(java.time.LocalDate desde, java.time.LocalDate hasta) {
         Set<String> pagados = pagoRepository.findByEstado(Pago.Estado.PAGADO).stream()
-                .filter(p -> p.getReferenciaTipo() == Pago.ReferenciaTipo.PEDIDO)
+                .filter(p -> p.getReferenciaTipo() == Pago.ReferenciaTipo.PEDIDO && enPeriodo(p.getFecha().toLocalDate(), desde, hasta))
                 .map(Pago::getReferenciaId).collect(Collectors.toSet());
         return detallePedidoRepository.findAll().stream()
                 .filter(d -> d.getPedido() != null && d.getPedido().getEstado() != Pedido.Estado.CANCELADO
                         && pagados.contains(d.getPedido().getId())).toList();
     }
 
-    public List<ProductoPopularResponse> productosPopulares() {
-        return detallesPagados().stream().filter(d -> d.getProducto() != null)
+    public List<ProductoPopularResponse> productosPopulares() { return productosPopulares(null, null); }
+
+    public List<ProductoPopularResponse> productosPopulares(java.time.LocalDate desde, java.time.LocalDate hasta) {
+        validarPeriodo(desde, hasta);
+        return detallesPagados(desde, hasta).stream().filter(d -> d.getProducto() != null)
                 .collect(Collectors.groupingBy(d -> d.getProducto().getId())).entrySet().stream()
                 .map(e -> ProductoPopularResponse.builder().productoId(e.getKey())
                         .productoNombre(e.getValue().get(0).getProducto().getNombre())
@@ -127,9 +137,12 @@ public class ReporteService {
                 .limit(10).toList();
     }
 
-    public List<ServicioPopularResponse> serviciosPopulares() {
+    public List<ServicioPopularResponse> serviciosPopulares() { return serviciosPopulares(null, null); }
+
+    public List<ServicioPopularResponse> serviciosPopulares(java.time.LocalDate desde, java.time.LocalDate hasta) {
+        validarPeriodo(desde, hasta);
         return citaRepository.findAll().stream()
-                .filter(c -> c.getServicio() != null && c.getEstado() != com.alphabike.backend.cita.Cita.Estado.CANCELADO)
+                .filter(c -> enPeriodo(c.getFecha(), desde, hasta) && c.getServicio() != null && c.getEstado() != com.alphabike.backend.cita.Cita.Estado.CANCELADO)
                 .collect(Collectors.groupingBy(c -> c.getServicio().getId())).entrySet().stream()
                 .map(e -> ServicioPopularResponse.builder().servicioId(e.getKey())
                         .servicioNombre(e.getValue().get(0).getServicio().getNombre())
@@ -138,4 +151,12 @@ public class ReporteService {
                         .thenComparing(ServicioPopularResponse::getServicioId))
                 .limit(10).toList();
     }
+    private boolean enPeriodo(java.time.LocalDate fecha, java.time.LocalDate desde, java.time.LocalDate hasta) {
+        return (desde == null || !fecha.isBefore(desde)) && (hasta == null || !fecha.isAfter(hasta));
+    }
+    private void validarPeriodo(java.time.LocalDate desde, java.time.LocalDate hasta) {
+        if (desde != null && hasta != null && desde.isAfter(hasta))
+            throw new com.alphabike.backend.shared.exception.BadRequestException("La fecha inicial no puede superar la fecha final");
+    }
+
 }

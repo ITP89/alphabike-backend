@@ -29,6 +29,7 @@ public class CitaService {
     private final UsuarioRepository usuarioRepository;
     private final ServicioRepository servicioRepository;
     private final ApplicationEventPublisher events;
+    private final AgendaService agenda;
 
     private CitaResponse guardarYNotificar(Cita cita) {
         Cita guardada = citaRepository.save(cita);
@@ -75,6 +76,7 @@ public class CitaService {
         Servicio servicio = servicioRepository.findById(request.getServicioId())
                 .orElseThrow(() -> new ResourceNotFoundException("Servicio no encontrado"));
 
+        agenda.validar(request, servicio);
         Cita cita = Cita.builder()
                 .cliente(cliente)
                 .servicio(servicio)
@@ -106,11 +108,25 @@ public class CitaService {
                 .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada"));
         Usuario encargado = usuarioRepository.findById(encargadoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Encargado no encontrado"));
-        if (encargado.getRol() != Usuario.Rol.ENCARGADO) {
+        if (cita.getEstado() == Cita.Estado.CANCELADO || cita.getEstado() == Cita.Estado.COMPLETADO) {
+            throw new BadRequestException("La cita ya esta cerrada");
+        }
+        if (encargado.getRol() != Usuario.Rol.ENCARGADO || encargado.getEstado() != Usuario.Estado.ACTIVO) {
             throw new UnauthorizedException("El usuario no es un encargado");
         }
         cita.setEncargado(encargado);
         return guardarYNotificar(cita);
+    }
+
+    public CitaResponse tomar(String id, String email) {
+        Cita cita = citaRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cita no encontrada"));
+        Usuario encargado = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Encargado no encontrado"));
+        if (cita.getEncargado() != null && !cita.getEncargado().getId().equals(encargado.getId())) {
+            throw new BadRequestException("La cita ya tiene un encargado asignado");
+        }
+        return asignarEncargado(id, encargado.getId());
     }
 
     public void cancelar(String id, String emailUsuario) {

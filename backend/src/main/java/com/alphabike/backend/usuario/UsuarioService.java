@@ -70,17 +70,35 @@ public class UsuarioService {
         return UsuarioResponse.from(usuarioRepository.save(usuario));
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public UsuarioResponse cambiarEstado(String id, String estado) {
+        var administradores = usuarioRepository.lockAdministradores();
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-        usuario.setEstado(EnumUtils.parse(Usuario.Estado.class, estado, "estado"));
+        var nuevoValor = EnumUtils.parse(Usuario.Estado.class, estado, "estado");
+        boolean pierdeAcceso = nuevoValor != Usuario.Estado.ACTIVO;
+        if (pierdeAcceso && usuario.getRol() == Usuario.Rol.ADMIN
+                && usuario.getEstado() == Usuario.Estado.ACTIVO
+                && administradores.stream().filter(u -> u.getEstado() == Usuario.Estado.ACTIVO).count() <= 1) {
+            throw new BadRequestException("Debe conservarse al menos un administrador activo");
+        }
+        usuario.setEstado(nuevoValor);
         return UsuarioResponse.from(usuarioRepository.save(usuario));
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public UsuarioResponse cambiarRol(String id, String rol) {
+        var administradores = usuarioRepository.lockAdministradores();
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
-        usuario.setRol(EnumUtils.parse(Usuario.Rol.class, rol, "rol"));
+        var nuevoValor = EnumUtils.parse(Usuario.Rol.class, rol, "rol");
+        boolean pierdeAcceso = nuevoValor != Usuario.Rol.ADMIN;
+        if (pierdeAcceso && usuario.getRol() == Usuario.Rol.ADMIN
+                && usuario.getEstado() == Usuario.Estado.ACTIVO
+                && administradores.stream().filter(u -> u.getEstado() == Usuario.Estado.ACTIVO).count() <= 1) {
+            throw new BadRequestException("Debe conservarse al menos un administrador activo");
+        }
+        usuario.setRol(nuevoValor);
         return UsuarioResponse.from(usuarioRepository.save(usuario));
     }
 
@@ -89,7 +107,7 @@ public class UsuarioService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
 
         usuario.setNombre(request.getNombre());
-        usuario.setTelefono(request.getTelefono());
+        if (request.getTelefono() != null) usuario.setTelefono(request.getTelefono());
         if (request.getPasswordNueva() != null && !request.getPasswordNueva().isBlank()) {
             if (request.getPasswordActual() == null || request.getPasswordActual().isBlank()) {
                 throw new BadRequestException("La contrasena actual es obligatoria");

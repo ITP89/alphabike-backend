@@ -67,7 +67,7 @@ public class ProductoService {
 
     @Transactional
     public ProductoResponse actualizar(String id, ProductoRequest request) {
-        Producto producto = productoRepository.findById(id)
+        Producto producto = productoRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
 
         Categoria categoria = categoriaRepository.findById(request.getCategoriaId())
@@ -79,7 +79,7 @@ public class ProductoService {
         producto.setMarca(request.getMarca());
         producto.setPrecio(request.getPrecio());
         producto.setPrecioMinimoVenta(resolvePrecioMinimoVenta(request));
-        producto.setStock(request.getStock());
+        // El inventario se ajusta por separado, con control del stock observado.
         producto.setImagenUrl(request.getImagenUrl());
         producto.setCategoria(categoria);
         producto.setProveedor(proveedor);
@@ -88,19 +88,23 @@ public class ProductoService {
     }
 
     @Transactional
-    public ProductoResponse actualizarStock(String id, Integer stock) {
+    public ProductoResponse actualizarStock(String id, Integer stock, Integer stockEsperado) {
         if (stock == null || stock < 0) {
             throw new BadRequestException("El stock no puede ser negativo");
         }
-        Producto producto = productoRepository.findById(id)
+        Producto producto = productoRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
+        if (stockEsperado == null || !stockEsperado.equals(producto.getStock())) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                    "El inventario cambio. Actualiza la lista antes de ajustar el stock");
+        }
         producto.setStock(stock);
         return ProductoResponse.from(productoRepository.save(producto));
     }
 
     @Transactional
     public void eliminar(String id) {
-        Producto producto = productoRepository.findById(id)
+        Producto producto = productoRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado"));
         producto.setEstado(Producto.Estado.DESCONTINUADO);
         productoRepository.save(producto);

@@ -18,6 +18,12 @@ public class PagoController {
 
     private final PagoService pagoService;
 
+    @GetMapping("/referencias-pendientes")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<PagoService.ReferenciaPendiente>>> referenciasPendientes() {
+        return ResponseEntity.ok(ApiResponse.ok("Referencias pendientes", pagoService.referenciasPendientes()));
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO')")
     public ResponseEntity<ApiResponse<List<PagoResponse>>> listar() {

@@ -15,7 +15,7 @@ public class MercadoPagoController {
     private final MercadoPagoCheckout checkout;
 
     @GetMapping("/config")
-    @PreAuthorize("hasRole('CLIENTE')")
+    @PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN')")
     public ApiResponse<MercadoPagoCheckout.Config> config() {
         return ApiResponse.ok("Configuracion de pago", checkout.config());
     }

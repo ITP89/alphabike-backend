@@ -52,8 +52,8 @@ public class ProductoController {
     @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO')")
     public ResponseEntity<ApiResponse<ProductoResponse>> actualizarStock(
             @PathVariable String id,
-            @RequestParam Integer stock) {
-        return ResponseEntity.ok(ApiResponse.ok("Stock actualizado", productoService.actualizarStock(id, stock)));
+            @RequestParam Integer stock, @RequestParam Integer stockEsperado) {
+        return ResponseEntity.ok(ApiResponse.ok("Stock actualizado", productoService.actualizarStock(id, stock, stockEsperado)));
     }
 
     @DeleteMapping("/{id}")

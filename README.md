@@ -202,3 +202,32 @@ Los pedidos de delivery/envio requieren direccion; el recojo en tienda no. No se
 `POST /api/v1/pedidos/venta-presencial` es exclusivo de ADMIN/ENCARGADO y recibe `operacionId` UUID, `metodoPago` y `detalles`. El servidor crea el pedido de recojo y registra el pago con su total exacto dentro de una sola transaccion. Un rechazo revierte pedido y stock. Repetir el mismo UUID y contenido devuelve el mismo pedido; cambiar el contenido con ese UUID se rechaza. V26 agrega las columnas y el indice unico sin borrar datos existentes; Flyway debe permanecer habilitado al actualizar.
 
 Los ingresos se obtienen de pagos confirmados. Descuentos, ventas por encargado y unidades vendidas incluyen solo pedidos con pago confirmado y excluyen cancelados. Los contadores totalPedidos/totalCitas representan registros de todos los estados; servicios populares representa citas no canceladas, no ventas pagadas.
+
+
+## Correcciones de paneles y reglas de operación (11/11/2026)
+
+- Los pedidos recorren PENDIENTE → PAGADO → EN_PREPARACION → LISTO_PARA_RECOJO / EN_CAMINO / ENVIADO → ENTREGADO. El servidor comprueba que el destino corresponda al tipo de entrega. Provincia exige guía.
+- El detalle devuelve clienteEmail y precioAcordado. Los cobros manuales consultan GET /api/v1/pagos/referencias-pendientes (ADMIN), que entrega referencia y monto calculado; el servidor vuelve a validar al registrar.
+- No se permite desactivar o degradar al último administrador activo. Las modificaciones de acceso bloquean el conjunto de administradores durante la transacción.
+- PUT /productos/{id} edita el catálogo y conserva el stock actual. PATCH /productos/{id}/stock requiere stock y stockEsperado; si una venta cambió el inventario, responde 409. Las escrituras usan bloqueo de fila.
+- ADMIN asigna un encargado activo mediante PATCH /citas/{id}/asignar?encargadoId=...; un ENCARGADO puede tomar una cita libre mediante PATCH /citas/{id}/tomar. Las citas cerradas no se reasignan.
+- Los reportes admiten desde y hasta en formato YYYY-MM-DD, inclusive. Ingresos y descuentos se filtran por fecha de pago; citas por su fecha de atención. Un rango invertido responde 400.
+- El pago de taller conserva el flujo existente de cobro final: registrar el pago finaliza el servicio. No se presenta como anticipo. El precio base de servicios exige S/30; ese límite no se aplica automáticamente a una cotización ni a productos.
+
+### Disponibilidad y reservas configurables
+
+La migración V29 agrega únicamente taller.agenda_lock y su fila de coordinación; no elimina ni reemplaza datos. GET /api/v1/citas/disponibilidad (autenticado) describe la política. Configurar solo con información confirmada del taller:
+
+| Variable | Valor por defecto | Uso |
+|---|---|---|
+| AGENDA_APERTURA | vacío | Hora HH:mm de apertura; configurar junto con cierre |
+| AGENDA_CIERRE | vacío | Hora HH:mm de cierre; la duración completa del servicio debe caber |
+| AGENDA_DIAS | 1,2,3,4,5,6,7 | Días ISO; lunes=1, domingo=7 |
+| AGENDA_CAPACIDAD | 0 | 0 conserva ausencia de límite; un valor positivo limita citas simultáneas, coordinadas con bloqueo global de agenda |
+| PEDIDOS_RESERVA_MINUTOS | 0 | 0 desactiva vencimiento automático; positivo libera pedidos pendientes vencidos sin operación remota de Mercado Pago |
+
+No se inventó el horario, la capacidad ni un plazo comercial. Los pagos remotos iniciados se excluyen del vencimiento local para no liberar mercancía mientras el proveedor podría confirmar un pago. No habilitar vencimiento sobre esos pagos sin consultar/cancelar al proveedor.
+
+### Verificación de regresiones
+
+La suite HTTP cubre entregas por tipo, contratos de precios/correos, stock antiguo, roles de asignación, referencias de cobro y períodos de reportes. Las pruebas de último administrador y agenda cubren límites y citas contiguas. TallerConcurrencyIntegrationTest verifica una venta simultánea con edición de catálogo sobre PostgreSQL. CI ejecuta también migraciones y MongoDB real, en bases de prueba.

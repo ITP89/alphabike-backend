@@ -17,11 +17,18 @@ import java.util.List;
 public class CitaController {
 
     private final CitaService citaService;
+    private final AgendaService agenda;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO')")
     public ResponseEntity<ApiResponse<List<CitaResponse>>> listar() {
         return ResponseEntity.ok(ApiResponse.ok("Citas obtenidas", citaService.listar()));
+    }
+
+    @GetMapping("/disponibilidad")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<AgendaService.Config>> disponibilidad() {
+        return ResponseEntity.ok(ApiResponse.ok("Politica de agenda", agenda.configuracion()));
     }
 
     @GetMapping("/mias")
@@ -61,6 +68,13 @@ public class CitaController {
             @PathVariable String id,
             @RequestParam String encargadoId) {
         return ResponseEntity.ok(ApiResponse.ok("Encargado asignado", citaService.asignarEncargado(id, encargadoId)));
+    }
+
+    @PatchMapping("/{id}/tomar")
+    @PreAuthorize("hasRole('ENCARGADO')")
+    public ResponseEntity<ApiResponse<CitaResponse>> tomar(@PathVariable String id,
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(ApiResponse.ok("Cita asignada", citaService.tomar(id, email)));
     }
 
     @DeleteMapping("/{id}")

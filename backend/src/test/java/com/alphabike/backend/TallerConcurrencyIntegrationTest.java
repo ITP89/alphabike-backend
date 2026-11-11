@@ -35,6 +35,39 @@ class TallerConcurrencyIntegrationTest {
     @Autowired DataSource dataSource;
     @Autowired JdbcTemplate jdbc;
 
+    @Autowired com.alphabike.backend.producto.ProductoService productosService;
+    @Autowired com.alphabike.backend.producto.ProductoRepository productos;
+    @Autowired com.alphabike.backend.categoria.CategoriaRepository categorias;
+    @Autowired com.alphabike.backend.pedido.PedidoService pedidos;
+
+    @Test void ventaConcurrenteConEdicionNoRestauraStockAntiguo() throws Exception {
+        var categoria = categorias.save(com.alphabike.backend.categoria.Categoria.builder().nombre("Inventario " + UUID.randomUUID()).build());
+        var producto = productos.save(com.alphabike.backend.producto.Producto.builder().nombre("Stock concurrente").marca("Test")
+                .categoria(categoria).precio(new BigDecimal("50.00")).precioMinimoVenta(new BigDecimal("50.00"))
+                .stock(10).estado(com.alphabike.backend.producto.Producto.Estado.ACTIVO).build());
+        var usuario = usuarios.save(Usuario.builder().nombre("Cliente prueba").email(UUID.randomUUID()+"@stock.test")
+                .passwordHash("test-only").rol(Usuario.Rol.CLIENTE).estado(Usuario.Estado.ACTIVO).emailVerificado(true).build());
+        var request = new com.alphabike.backend.producto.dto.ProductoRequest();
+        request.setNombre("Editado"); request.setMarca("Test"); request.setPrecio(new BigDecimal("50.00"));
+        request.setStock(10); request.setCategoriaId(categoria.getId());
+        var detalle = new com.alphabike.backend.pedido.dto.DetallePedidoRequest();
+        detalle.setProductoId(producto.getId()); detalle.setCantidad(1);
+        var pedido = new com.alphabike.backend.pedido.dto.PedidoRequest();
+        pedido.setTipoEntrega("RECOJO_TIENDA"); pedido.setDetalles(java.util.List.of(detalle));
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try (var holder = dataSource.getConnection()) {
+            holder.setAutoCommit(false);
+            try (var statement = holder.prepareStatement("select id from tienda.productos where id=? for update")) {
+                statement.setString(1, producto.getId()); statement.executeQuery().close();
+            }
+            var venta = pool.submit(() -> pedidos.crear(pedido, usuario.getEmail()));
+            var edicion = pool.submit(() -> productosService.actualizar(producto.getId(), request));
+            holder.commit();
+            venta.get(10, TimeUnit.SECONDS); edicion.get(10, TimeUnit.SECONDS);
+        } finally { pool.shutdownNow(); }
+        assertThat(productos.findById(producto.getId()).orElseThrow().getStock()).isEqualTo(9);
+    }
+
     record Fixture(String email, String id, String quote) {}
 
     Fixture crearCaso() {
