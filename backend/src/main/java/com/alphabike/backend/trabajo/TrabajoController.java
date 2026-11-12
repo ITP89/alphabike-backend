@@ -50,7 +50,7 @@ public class TrabajoController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'ENCARGADO')")
     public ResponseEntity<ApiResponse<Void>> eliminar(@PathVariable String id) {
         trabajoService.eliminar(id);
         return ResponseEntity.ok(ApiResponse.ok("Trabajo eliminado"));

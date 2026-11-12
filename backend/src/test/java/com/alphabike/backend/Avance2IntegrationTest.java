@@ -498,4 +498,84 @@ class Avance2IntegrationTest {
         assertThat(request("POST", "/pagos", body, staff).status()).isEqualTo(400);
     }
 
+    @Test void catalogAndGalleryCrudPreserveRoleBoundaries() throws Exception {
+        String suffix = UUID.randomUUID().toString();
+        String category = request("POST", "/categorias", Map.of("nombre", "Categoría " + suffix), admin).id();
+        assertThat(category).isNotBlank();
+        assertThat(request("GET", "/categorias/" + category, null, owner).status()).isEqualTo(200);
+        assertThat(request("PUT", "/categorias/" + category,
+                Map.of("nombre", "Categoría editada " + suffix), admin).status()).isEqualTo(200);
+
+        var product = Map.of("nombre", "Producto " + suffix, "marca", "Alpha",
+                "precio", 40, "stock", 10, "categoriaId", category);
+        String productId = request("POST", "/productos", product, staff).id();
+        assertThat(productId).isNotBlank();
+        assertThat(request("GET", "/productos", null, owner).data().toString()).contains(productId);
+        assertThat(request("PUT", "/productos/" + productId, Map.of("nombre", "Producto editado",
+                "marca", "Alpha", "precio", 45, "stock", 10, "categoriaId", category), staff)
+                .data().path("precio").decimalValue()).isEqualByComparingTo("45");
+        assertThat(request("DELETE", "/productos/" + productId, null, staff).status()).isEqualTo(403);
+        assertThat(request("DELETE", "/productos/" + productId, null, admin).status()).isEqualTo(200);
+        assertThat(request("GET", "/productos", null, owner).data().toString()).doesNotContain(productId);
+        assertThat(request("GET", "/productos/todos", null, staff).data().toString())
+                .contains(productId, "DESCONTINUADO");
+
+        String removableCategory = request("POST", "/categorias", Map.of("nombre", "Temporal " + suffix), admin).id();
+        assertThat(request("DELETE", "/categorias/" + removableCategory, null, admin).status()).isEqualTo(200);
+        assertThat(request("GET", "/categorias/" + removableCategory, null, owner).status()).isEqualTo(404);
+
+        String work = request("POST", "/trabajos", Map.of("titulo", "Trabajo " + suffix), staff).id();
+        assertThat(work).isNotBlank();
+        assertThat(request("GET", "/trabajos/" + work, null, owner).status()).isEqualTo(200);
+        assertThat(request("PUT", "/trabajos/" + work, Map.of("titulo", "Trabajo editado"), staff)
+                .data().path("titulo").asText()).isEqualTo("Trabajo editado");
+        assertThat(request("DELETE", "/trabajos/" + work, null, owner).status()).isEqualTo(403);
+        assertThat(request("DELETE", "/trabajos/" + work, null, staff).status()).isEqualTo(200);
+        assertThat(request("GET", "/trabajos/" + work, null, owner).status()).isEqualTo(404);
+    }
+
+    @Test void administratorCanManageServicesProvidersAndAccounts() throws Exception {
+        String suffix = UUID.randomUUID().toString();
+        String service = service();
+        assertThat(request("GET", "/servicios/" + service, null, owner).status()).isEqualTo(200);
+        assertThat(request("PUT", "/servicios/" + service,
+                Map.of("nombre", "Servicio editado " + suffix, "precioBase", 75, "duracionMin", 45), admin)
+                .data().path("precioBase").decimalValue()).isEqualByComparingTo("75");
+        assertThat(request("DELETE", "/servicios/" + service, null, admin).status()).isEqualTo(200);
+        assertThat(request("GET", "/servicios/" + service, null, owner).status()).isEqualTo(404);
+
+        var provider = new java.util.HashMap<>(Map.of("nombre", "Proveedor", "ruc", Long.toString(20000000000L + java.util.concurrent.ThreadLocalRandom.current().nextLong(1000000000L)),
+                "telefono", "999999999", "email", "proveedor@example.test", "direccion", "Dirección de prueba"));
+        String providerId = request("POST", "/proveedores", provider, admin).id();
+        assertThat(providerId).isNotBlank();
+        assertThat(request("GET", "/proveedores/" + providerId, null, admin).status()).isEqualTo(200);
+        provider.put("nombre", "Proveedor editado");
+        assertThat(request("PUT", "/proveedores/" + providerId, provider, admin)
+                .data().path("nombre").asText()).isEqualTo("Proveedor editado");
+        assertThat(request("DELETE", "/proveedores/" + providerId, null, admin).status()).isEqualTo(200);
+        assertThat(request("GET", "/proveedores/" + providerId, null, admin)
+                .data().path("estado").asText()).isEqualTo("INACTIVO");
+
+        var account = new java.util.HashMap<>(Map.of("nombre", "Cuenta temporal", "email", suffix + "@example.test",
+                "telefono", "999999999", "password", "Integration123!", "rol", "CLIENTE"));
+        String user = request("POST", "/usuarios", account, admin).id();
+        assertThat(user).isNotBlank();
+        assertThat(request("GET", "/usuarios/" + user, null, admin).status()).isEqualTo(200);
+        account.remove("password");
+        account.put("nombre", "Cuenta editada");
+        assertThat(request("PUT", "/usuarios/" + user, account, admin).data().path("nombre").asText())
+                .isEqualTo("Cuenta editada");
+        assertThat(request("PATCH", "/usuarios/" + user + "/estado?estado=INACTIVO", null, admin)
+                .data().path("estado").asText()).isEqualTo("INACTIVO");
+    }
+
+    @Test void clientCanCancelOwnAppointmentButCannotCancelAnotherClients() throws Exception {
+        String appointment = appointment();
+        assertThat(request("GET", "/citas/" + appointment, null, owner).status()).isEqualTo(200);
+        assertThat(request("DELETE", "/citas/" + appointment, null, other).status()).isEqualTo(403);
+        assertThat(request("DELETE", "/citas/" + appointment, null, owner).status()).isEqualTo(200);
+        assertThat(request("GET", "/citas/" + appointment, null, owner).data().path("estado").asText())
+                .isEqualTo("CANCELADO");
+    }
+
 }
