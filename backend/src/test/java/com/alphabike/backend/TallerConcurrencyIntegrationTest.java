@@ -45,7 +45,7 @@ class TallerConcurrencyIntegrationTest {
         var producto = productos.save(com.alphabike.backend.producto.Producto.builder().nombre("Stock concurrente").marca("Test")
                 .categoria(categoria).precio(new BigDecimal("50.00")).precioMinimoVenta(new BigDecimal("50.00"))
                 .stock(10).estado(com.alphabike.backend.producto.Producto.Estado.ACTIVO).build());
-        var usuario = usuarios.save(Usuario.builder().nombre("Cliente prueba").email(UUID.randomUUID()+"@stock.test")
+        var usuario = usuarios.save(Usuario.builder().nombre("Cliente prueba").telefono("999999999").email(UUID.randomUUID()+"@stock.test")
                 .passwordHash("test-only").rol(Usuario.Rol.CLIENTE).estado(Usuario.Estado.ACTIVO).emailVerificado(true).build());
         var request = new com.alphabike.backend.producto.dto.ProductoRequest();
         request.setNombre("Editado"); request.setMarca("Test"); request.setPrecio(new BigDecimal("50.00"));

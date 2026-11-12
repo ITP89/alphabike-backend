@@ -18,7 +18,7 @@ public class ServicioRequest {
     private String descripcion;
 
     @NotNull(message = "El precio base es obligatorio")
-    @DecimalMin(value = "30.00", message = "El precio mínimo permitido es S/ 30.00")
+    @DecimalMin(value = "30.00", message = "El precio mÃ­nimo permitido es S/ 30.00")
     @Digits(integer = 8, fraction = 2, message = "El precio admite hasta 8 enteros y 2 decimales")
     private BigDecimal precioBase;
 
