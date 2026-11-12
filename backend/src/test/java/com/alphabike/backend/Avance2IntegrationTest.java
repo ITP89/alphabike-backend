@@ -479,4 +479,23 @@ class Avance2IntegrationTest {
         assertThat(request("GET", "/mercado-pago/config", null, other).status()).isEqualTo(200);
     }
 
+    @Test void completedAppointmentCanCollectItsUnpaidQuoteAndReturnsClientAndCardDetails() throws Exception {
+        String cita = appointment();
+        String quote = request("POST", "/cotizaciones/cita/" + cita,
+                Map.of("descripcion", "Servicio terminado sin cobrar", "monto", 50), staff).id();
+        assertThat(request("PATCH", "/citas/" + cita + "/estado?estado=COMPLETADO", null, staff).status()).isEqualTo(200);
+        assertThat(request("GET", "/pagos/referencias-pendientes", null, admin).data().toString()).contains(quote);
+        var body = Map.of("referenciaTipo", "COTIZACION", "referenciaId", quote,
+                "monto", 50, "metodoPago", "TARJETA", "tarjetaMarca", "VISA",
+                "tarjetaUltimos4", "4242", "transaccionId", "TEST-COMPLETED");
+        assertThat(request("POST", "/pagos", body, staff).status()).isEqualTo(200);
+        assertThat(request("GET", "/pagos/referencias-pendientes", null, admin).data().toString()).doesNotContain(quote);
+        var payments = request("GET", "/pagos/referencia/" + quote, null, staff);
+        assertThat(payments.status()).isEqualTo(200);
+        assertThat(payments.data().get(0).path("clienteNombre").asText()).isEqualTo("Integration CLIENTE");
+        assertThat(payments.data().get(0).path("tarjetaMarca").asText()).isEqualTo("VISA");
+        assertThat(payments.data().get(0).path("tarjetaUltimos4").asText()).isEqualTo("4242");
+        assertThat(request("POST", "/pagos", body, staff).status()).isEqualTo(400);
+    }
+
 }

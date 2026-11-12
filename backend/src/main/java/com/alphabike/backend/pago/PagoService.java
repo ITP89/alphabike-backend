@@ -31,11 +31,26 @@ public class PagoService {
     private final UsuarioRepository usuarioRepository;
     private final ApplicationEventPublisher events;
 
+    @Transactional(readOnly = true)
     public List<PagoResponse> listar() {
-        return pagoRepository.findAll()
-                .stream()
-                .map(PagoResponse::from)
-                .toList();
+        return respuestas(pagoRepository.findAll());
+    }
+
+    private List<PagoResponse> respuestas(List<Pago> pagos) {
+        var nombres = new java.util.HashMap<String, String>();
+        var pedidos = pagos.stream().filter(p -> p.getReferenciaTipo() == Pago.ReferenciaTipo.PEDIDO)
+                .map(Pago::getReferenciaId).distinct().toList();
+        var cotizaciones = pagos.stream().filter(p -> p.getReferenciaTipo() == Pago.ReferenciaTipo.COTIZACION)
+                .map(Pago::getReferenciaId).distinct().toList();
+        pedidoRepository.findAllById(pedidos).forEach(p ->
+                nombres.put("PEDIDO:" + p.getId(), p.getCliente().getNombre()));
+        cotizacionRepository.findAllById(cotizaciones).forEach(c ->
+                nombres.put("COTIZACION:" + c.getId(), c.getCita().getCliente().getNombre()));
+        return pagos.stream().map(p -> {
+            PagoResponse response = PagoResponse.from(p);
+            response.setClienteNombre(nombres.get(p.getReferenciaTipo().name() + ":" + p.getReferenciaId()));
+            return response;
+        }).toList();
     }
 
     public record ReferenciaPendiente(String id, String tipo, String descripcion, java.math.BigDecimal monto) {}
@@ -51,25 +66,21 @@ public class PagoService {
                 .forEach(p -> result.add(new ReferenciaPendiente(p.getId(), "PEDIDO",
                         p.getCliente().getNombre() + " · Pedido #" + p.getId().substring(0, 8), p.getTotal())));
         cotizacionRepository.findAll().stream()
-                .filter(c -> c.getCita().getEstado() != Cita.Estado.CANCELADO && c.getCita().getEstado() != Cita.Estado.COMPLETADO
+                .filter(c -> c.getCita().getEstado() != Cita.Estado.CANCELADO
                         && c.getEstado() != Cotizacion.Estado.RECHAZADA && !pagadas.contains("COTIZACION:" + c.getId()))
                 .forEach(c -> result.add(new ReferenciaPendiente(c.getId(), "COTIZACION",
                         c.getCita().getCliente().getNombre() + " · " + c.getCita().getServicio().getNombre(), c.getMonto())));
         return result;
     }
 
+    @Transactional(readOnly = true)
     public List<PagoResponse> listarPendientes() {
-        return pagoRepository.findByEstado(Pago.Estado.PENDIENTE)
-                .stream()
-                .map(PagoResponse::from)
-                .toList();
+        return respuestas(pagoRepository.findByEstado(Pago.Estado.PENDIENTE));
     }
 
+    @Transactional(readOnly = true)
     public List<PagoResponse> listarPorReferencia(String referenciaId) {
-        return pagoRepository.findByReferenciaId(referenciaId)
-                .stream()
-                .map(PagoResponse::from)
-                .toList();
+        return respuestas(pagoRepository.findByReferenciaId(referenciaId));
     }
 
     @org.springframework.beans.factory.annotation.Value("${app.payment.mercado-pago.enabled:false}")

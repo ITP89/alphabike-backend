@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 public class PagoResponse {
 
     private String id;
+    private String clienteNombre;
     private String referenciaTipo;
     private String referenciaId;
     private BigDecimal monto;

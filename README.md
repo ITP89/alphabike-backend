@@ -231,3 +231,12 @@ No se inventó el horario, la capacidad ni un plazo comercial. Los pagos remotos
 ### Verificación de regresiones
 
 La suite HTTP cubre entregas por tipo, contratos de precios/correos, stock antiguo, roles de asignación, referencias de cobro y períodos de reportes. Las pruebas de último administrador y agenda cubren límites y citas contiguas. TallerConcurrencyIntegrationTest verifica una venta simultánea con edición de catálogo sobre PostgreSQL. CI ejecuta también migraciones y MongoDB real, en bases de prueba.
+
+
+### Consistencia de cobros y pedidos
+
+- El estado del servicio y su pago se consultan por separado. Una cita completada conserva el cobro pendiente de su cotización; las canceladas y las referencias ya pagadas no se ofrecen para cobrar.
+- El encargado puede consultar productos, cantidades, destino y guía del pedido antes de avanzar su entrega.
+- El cliente puede recuperar el pago simulado de un pedido pendiente existente o solicitar su cancelación. El servidor vuelve a validar propiedad, estado y reserva; una operación asociada a Mercado Pago exige resolver primero su estado remoto.
+- Los pagos de consulta incluyen el nombre del cliente y los datos persistidos de operación/tarjeta. Las constancias internas no inventan autorizaciones ni datos fiscales.
+- El resumen administrativo distingue Mercado Pago y otros métodos para reconciliar el desglose con los ingresos confirmados. Los pedidos muestran la fecha del contrato HTTP.
